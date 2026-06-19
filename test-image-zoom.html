@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Image Zoom</title>
+    <style>
+        /* ===== Reset & Variables ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #334155;
+            --border: #475569;
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #818cf8;
+            --green: #4ade80;
+            --orange: #fb923c;
+            --red: #f87171;
+            --yellow: #fbbf24;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, 'SF Pro Display', 'PingFang SC', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        code, pre {
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+
+        .slide {
+            min-height: auto;
+            padding: 32px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-bottom: none;
+            position: relative;
+        }
+
+        .slide-number {
+            position: absolute;
+            top: 24px;
+            right: 32px;
+            font-size: 14px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', monospace;
+        }
+
+        .cover {
+            text-align: center;
+            background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+        }
+
+        .cover h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover .subtitle { font-size: 24px; color: var(--text-dim); margin-bottom: 8px; }
+        .cover .meta { font-size: 14px; color: var(--text-dim); }
+
+        .content { max-width: 900px; width: 100%; }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h2 .emoji { font-size: 32px; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+
+        .card h4 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--accent); }
+        .card p { font-size: 14px; color: var(--text-dim); }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 16px 0;
+        }
+
+        .mermaid svg { max-width: 100%; height: auto; }
+
+        .diagram-focusable {
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            transition: border-color 0.2s;
+            padding: 4px;
+        }
+
+        .diagram-focusable.focused { border-color: var(--accent); }
+
+        .diagram-focusable.no-focus {
+            opacity: 0.6;
+            cursor: default;
+            border-color: transparent !important;
+        }
+
+        .diagram-focusable.no-focus:hover { border-color: transparent !important; }
+
+        body.mode-ppt { overflow: hidden; }
+
+        body.mode-ppt .slide {
+            min-height: 100vh;
+            padding: 60px 80px;
+            border-bottom: 1px solid var(--border);
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+        }
+
+        #scroll-container.mode-ppt {
+            scroll-snap-type: y proximity;
+            overflow-y: scroll;
+            overflow-x: auto;
+            height: 100vh;
+        }
+
+        /* ===== Bounce Animations ===== */
+        @keyframes slide-bounce-down {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+
+        @keyframes slide-bounce-up {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes slide-bounce-left {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-8px); }
+        }
+
+        @keyframes slide-bounce-right {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(8px); }
+        }
+
+        #scroll-container.bounce-down { animation: slide-bounce-down 0.3s ease-out; }
+        #scroll-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
+        #scroll-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
+        #scroll-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
+
+        body.mode-zoom .slide { display: none; }
+
+        body.mode-zoom .zoom-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            z-index: 100;
+            overflow: auto;
+        }
+
+        body.mode-zoom .zoom-content {
+            /* No size restrictions — let container scroll */
+        }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            z-index: 50;
+            opacity: 0.7;
+        }
+
+        .keyboard-hint kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            background: var(--surface2);
+            border-radius: 4px;
+            font-family: 'SF Mono', monospace;
+            font-size: 11px;
+            margin: 0 2px;
+        }
+
+        .test-label {
+            font-size: 12px;
+            color: var(--yellow);
+            background: rgba(251, 191, 36, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .img-placeholder-small {
+            width: 400px;
+            height: 300px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--bg);
+            font-weight: 600;
+        }
+
+        .img-placeholder-large {
+            width: 1500px;
+            height: 1000px;
+            background: linear-gradient(135deg, var(--orange) 0%, var(--red) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--bg);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div id="scroll-container">
+
+<!-- Slide 1: Cover -->
+<div class="slide cover">
+    <div>
+        <h1>Test: Image Zoom</h1>
+        <p class="subtitle">Testing image zoom behavior</p>
+        <p class="meta">按 Enter 进入 PPT 模式</p>
+    </div>
+</div>
+
+<!-- Slide 2: Small image - should NOT trigger zoom -->
+<div class="slide">
+    <span class="slide-number">01</span>
+    <div class="content">
+        <h2><span class="emoji">🟢</span> Small Image (No Zoom)</h2>
+        <div class="test-label">Expected: 400x300, fits viewport, no zoom</div>
+        <div class="diagram-focusable" data-focusable>
+            <div class="img-placeholder-small">400 x 300</div>
+        </div>
+        <p style="font-size: 14px; color: var(--text-dim); margin-top: 12px;">This 400x300 placeholder fits within the viewport and should NOT trigger zoom.</p>
+    </div>
+</div>
+
+<!-- Slide 3: Large image - should trigger zoom when > viewport -->
+<div class="slide">
+    <span class="slide-number">02</span>
+    <div class="content">
+        <h2><span class="emoji">🔴</span> Large Image (Should Zoom)</h2>
+        <div class="test-label">Expected: 1500x1000, exceeds viewport, zoom activates</div>
+        <div class="diagram-focusable" data-focusable>
+            <div class="img-placeholder-large">1500 x 1000</div>
+        </div>
+        <p style="font-size: 14px; color: var(--text-dim); margin-top: 12px;">This 1500x1000 placeholder exceeds the viewport and should trigger zoom.</p>
+    </div>
+</div>
+
+<!-- Slide 4: End -->
+<div class="slide cover">
+    <div>
+        <h1>End</h1>
+        <p class="subtitle">Press Esc to exit PPT mode</p>
+    </div>
+</div>
+
+</div>
+
+<div class="keyboard-hint">
+    <kbd>Enter</kbd> PPT · <kbd>Esc</kbd> Doc · <kbd>↑↓</kbd> Scroll/翻页 · <kbd>←→</kbd> Scroll/切换焦点
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+</script>
+
+<script>
+    let currentState = 'DOC';
+    let currentSlideIndex = 0;
+    let focusedDiagramIndex = -1;
+    let isAtScrollBoundary = false;
+    let zoomTarget = null;
+
+    // Expose state to window for testing
+    Object.defineProperty(window, 'currentState', { get: () => currentState });
+    Object.defineProperty(window, 'currentSlideIndex', { get: () => currentSlideIndex });
+    Object.defineProperty(window, 'focusedDiagramIndex', { get: () => focusedDiagramIndex });
+    Object.defineProperty(window, 'isAtScrollBoundary', { get: () => isAtScrollBoundary });
+
+    document.addEventListener('keydown', (e) => {
+        const slides = document.querySelectorAll('.slide');
+        
+        switch(currentState) {
+            case 'DOC':
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    enterPPTMode();
+                }
+                break;
+                
+            case 'PPT_FULL':
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    enterDocMode();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const focused = document.querySelector('.diagram-focusable.focused');
+                    if (focused) enterZoomMode(focused);
+                } else if (e.key === 'ArrowDown' || e.key === ' ') {
+                    e.preventDefault();
+                    if (isAtScrollBoundary) {
+                        navigateSlide(1);
+                    } else if (canScrollVertically(1)) {
+                        scrollSlideContent(1, 'y');
+                        if (!canScrollVertically(1)) {
+                            isAtScrollBoundary = true;
+                            triggerBounce(1, 'y');
+                        }
+                    } else {
+                        navigateSlide(1);
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (isAtScrollBoundary) {
+                        navigateSlide(-1);
+                    } else if (canScrollVertically(-1)) {
+                        isAtScrollBoundary = false;
+                        scrollSlideContent(-1, 'y');
+                        if (!canScrollVertically(-1)) {
+                            isAtScrollBoundary = true;
+                            triggerBounce(-1, 'y');
+                        }
+                    } else {
+                        navigateSlide(-1);
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (isAtScrollBoundary) {
+                        handleFocusSwitch('ArrowRight');
+                    } else if (canScrollHorizontally(1)) {
+                        scrollSlideContent(1, 'x');
+                        if (!canScrollHorizontally(1)) {
+                            isAtScrollBoundary = true;
+                            triggerBounce(1, 'x');
+                        }
+                    } else {
+                        handleFocusSwitch('ArrowRight');
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    if (isAtScrollBoundary) {
+                        handleFocusSwitch('ArrowLeft');
+                    } else if (canScrollHorizontally(-1)) {
+                        isAtScrollBoundary = false;
+                        scrollSlideContent(-1, 'x');
+                        if (!canScrollHorizontally(-1)) {
+                            isAtScrollBoundary = true;
+                            triggerBounce(-1, 'x');
+                        }
+                    } else {
+                        handleFocusSwitch('ArrowLeft');
+                    }
+                }
+                break;
+                
+            case 'PPT_ZOOM':
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    exitZoomMode();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    scrollZoomContainer('left');
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    scrollZoomContainer('right');
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (!scrollZoomContainer('up')) {
+                        exitZoomMode();
+                        navigateSlide(-1);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!scrollZoomContainer('down')) {
+                        exitZoomMode();
+                        navigateSlide(1);
+                    }
+                }
+                break;
+        }
+    });
+
+    function enterPPTMode() {
+        currentState = 'PPT_FULL';
+        isAtScrollBoundary = false;
+        document.body.className = 'mode-ppt';
+        const container = document.getElementById('scroll-container');
+        if (container) container.classList.add('mode-ppt');
+        
+        const slides = document.querySelectorAll('.slide');
+        const scrollTop = container ? container.scrollTop : window.scrollY;
+        const viewportCenter = scrollTop + window.innerHeight / 2;
+        let nearestIndex = 0;
+        let minDistance = Infinity;
+        
+        slides.forEach((slide, i) => {
+            const slideTop = slide.offsetTop - (container ? container.offsetTop : 0);
+            const slideCenter = slideTop + slide.offsetHeight / 2;
+            const distance = Math.abs(slideCenter - viewportCenter);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestIndex = i;
+            }
+        });
+        
+        currentSlideIndex = nearestIndex;
+        slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+        updateFocus();
+    }
+
+    function enterDocMode() {
+        currentState = 'DOC';
+        document.body.className = '';
+        const container = document.getElementById('scroll-container');
+        if (container) container.classList.remove('mode-ppt');
+        clearFocus();
+        const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+        if (slide) { const target = slide.offsetTop + slide.offsetHeight / 2 - window.innerHeight / 2; window.scrollTo({ top: Math.max(0, target), behavior: 'instant' }); }
+    }
+
+    function enterZoomMode(element) {
+        currentState = 'PPT_ZOOM';
+        zoomTarget = element;
+        document.body.className = 'mode-zoom';
+        
+        const container = document.createElement('div');
+        container.className = 'zoom-container';
+        const clone = element.cloneNode(true);
+        clone.classList.add('zoom-content');
+        container.appendChild(clone);
+        document.body.appendChild(container);
+    }
+
+    function exitZoomMode() {
+        currentState = 'PPT_FULL';
+        document.body.className = 'mode-ppt';
+        const container = document.getElementById('scroll-container');
+        if (container) container.classList.add('mode-ppt');
+        
+        const zoomContainer = document.querySelector('.zoom-container');
+        if (zoomContainer) zoomContainer.remove();
+        zoomTarget = null;
+        
+        const slides = document.querySelectorAll('.slide');
+        if (slides[currentSlideIndex]) {
+        const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
+        window.scrollTo({ top: targetTop, behavior: 'instant' });
+        }
+        
+        updateFocus(true);
+    }
+
+    function navigateSlide(direction) {
+        const slides = document.querySelectorAll('.slide');
+        const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
+        
+        if (newIndex !== currentSlideIndex) {
+            currentSlideIndex = newIndex;
+            isAtScrollBoundary = false;
+            slides[newIndex].scrollIntoView({ behavior: 'instant' });
+            updateFocus();
+        }
+    }
+
+    function updateFocus(preserveIndex = false) {
+        const savedIndex = focusedDiagramIndex;
+        clearFocus();
+        if (!preserveIndex) isAtScrollBoundary = false;
+        const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+        if (!slide) return;
+        
+        const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+            .filter(el => !el.classList.contains('no-focus'));
+        if (focusables.length > 0) {
+            if (!preserveIndex || savedIndex < 0 || savedIndex >= focusables.length) {
+                focusedDiagramIndex = 0;
+            } else {
+                focusedDiagramIndex = savedIndex;
+            }
+            focusables[focusedDiagramIndex].classList.add('focused');
+        }
+    }
+
+    function clearFocus() {
+        document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+            el.classList.remove('focused');
+        });
+        focusedDiagramIndex = -1;
+    }
+
+    function handleFocusSwitch(key) {
+        const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+        if (!slide) return;
+        
+        const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+            .filter(el => !el.classList.contains('no-focus'));
+        if (focusables.length <= 1) return;
+        
+        let newIndex;
+        if (key === 'ArrowRight') {
+            newIndex = Math.min(focusedDiagramIndex + 1, focusables.length - 1);
+        } else {
+            newIndex = Math.max(focusedDiagramIndex - 1, 0);
+        }
+        
+        focusedDiagramIndex = newIndex;
+        
+        document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+            el.classList.remove('focused');
+        });
+        focusables[focusedDiagramIndex].classList.add('focused');
+    }
+
+    function scrollZoomContainer(direction) {
+        const container = document.querySelector('.zoom-container');
+        if (!container) return false;
+        
+        const scrollAmount = 100;
+        const { scrollTop, scrollLeft, scrollHeight, scrollWidth, clientHeight, clientWidth } = container;
+        
+        switch(direction) {
+            case 'up':
+                if (scrollTop <= 0) return false;
+                container.scrollTop -= scrollAmount;
+                return true;
+            case 'down':
+                if (scrollTop + clientHeight >= scrollHeight) return false;
+                container.scrollTop += scrollAmount;
+                return true;
+            case 'left':
+                container.scrollLeft -= scrollAmount;
+                return true;
+            case 'right':
+                container.scrollLeft += scrollAmount;
+                return true;
+        }
+        return false;
+    }
+
+
+    // ===== Scroll Within Slide Functions =====
+    function canScrollVertically(direction) {
+        const container = document.getElementById('scroll-container');
+        if (!container) return false;
+        const slides = document.querySelectorAll('.slide');
+        const slide = slides[currentSlideIndex];
+        if (!slide) return false;
+        
+        const containerScrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        const slideTop = slide.offsetTop - container.offsetTop;
+        const slideBottom = slideTop + slide.offsetHeight;
+        
+        if (direction > 0) {
+            return containerScrollTop + containerHeight < slideBottom - 10;
+        } else {
+            return containerScrollTop > slideTop + 10;
+        }
+    }
+
+    function canScrollHorizontally(direction) {
+        const container = document.getElementById('scroll-container');
+        if (!container) return false;
+        const slides = document.querySelectorAll('.slide');
+        const slide = slides[currentSlideIndex];
+        if (!slide) return false;
+        
+        const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+            .filter(el => !el.classList.contains('no-focus'));
+        if (focusables.length === 0 || focusedDiagramIndex < 0 || focusedDiagramIndex >= focusables.length) return false;
+        
+        const focused = focusables[focusedDiagramIndex];
+        const diagramWidth = focused.scrollWidth;
+        const containerWidth = container.clientWidth;
+        
+        if (diagramWidth <= containerWidth + 10) return false;
+        
+        if (direction > 0) {
+            return container.scrollLeft + containerWidth < diagramWidth - 10;
+        } else {
+            return container.scrollLeft > 10;
+        }
+    }
+
+    function scrollSlideContent(direction, axis) {
+        const container = document.getElementById('scroll-container');
+        if (!container) return false;
+        
+        const oldSnap = container.style.scrollSnapType;
+        container.style.scrollSnapType = 'none';
+        
+        const dimension = axis === 'y' ? 'clientHeight' : 'clientWidth';
+        const scrollProp = axis === 'y' ? 'scrollTop' : 'scrollLeft';
+        const step = container[dimension] * 0.8;
+        
+        container.scrollTo({
+            [axis === 'y' ? 'top' : 'left']: container[scrollProp] + direction * step,
+            behavior: 'smooth'
+        });
+        
+        setTimeout(() => {
+            container.style.scrollSnapType = oldSnap || 'y proximity';
+        }, 500);
+        
+        return true;
+    }
+
+    function triggerBounce(direction, axis) {
+        const container = document.getElementById('scroll-container');
+        if (!container) return;
+        
+        const bounceClass = axis === 'y'
+            ? (direction > 0 ? 'bounce-down' : 'bounce-up')
+            : (direction > 0 ? 'bounce-right' : 'bounce-left');
+        
+        container.classList.add(bounceClass);
+        setTimeout(() => container.classList.remove(bounceClass), 300);
+    }
+
+    window.addEventListener('load', () => {
+        document.querySelectorAll('.mermaid svg, img').forEach(el => {
+            const rect = el.getBoundingClientRect();
+            const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;
+            if (needsZoom) {
+                const wrapper = el.closest('.diagram-focusable') || el.parentElement;
+                if (wrapper) wrapper.classList.add('needs-zoom');
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

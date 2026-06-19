@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Matrix Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+            --border: #475569; --text: #e2e8f0; --text-dim: #94a3b8;
+            --accent: #38bdf8; --green: #4ade80; --red: #f87171;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+        
+        .slide { min-height: auto; padding: 32px 40px; border-bottom: none; position: relative; }
+        .slide-number { position: absolute; top: 24px; right: 32px; font-size: 14px; color: var(--text-dim); font-family: monospace; }
+        .cover { text-align: center; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .cover h1 { font-size: 48px; background: linear-gradient(135deg, var(--accent), #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .cover .subtitle { font-size: 24px; color: var(--text-dim); margin-top: 16px; }
+        .content { max-width: 900px; }
+        h2 { font-size: 36px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .test-label { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; padding: 8px 12px; background: var(--surface); border-radius: 6px; }
+        
+        .diagram-grid { display: grid; gap: 16px; margin: 16px 0; }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        
+        .diagram-focusable { cursor: pointer; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s; padding: 4px; }
+        .diagram-focusable.focused { border-color: var(--accent); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
+        .diagram-focusable.no-focus { opacity: 0.5; cursor: default; }
+        
+        .diagram-box { border-radius: 8px; padding: 32px 16px; text-align: center; font-weight: 600; font-size: 14px; }
+        .diagram-box.focusable { background: rgba(74, 222, 128, 0.15); border: 1px solid var(--green); color: var(--green); }
+        .diagram-box.non-focus { background: rgba(248, 113, 113, 0.15); border: 1px solid var(--red); color: var(--red); }
+        
+        body.mode-ppt { overflow: hidden; }
+        body.mode-ppt .slide { min-height: 100vh; padding: 60px 80px; border-bottom: 1px solid var(--border); scroll-snap-align: start; scroll-snap-stop: always; }
+        #scroll-container.mode-ppt { scroll-snap-type: y proximity; overflow-y: scroll; overflow-x: auto; height: 100vh; }
+        
+        @keyframes slide-bounce-down {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+
+        @keyframes slide-bounce-up {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes slide-bounce-left {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-8px); }
+        }
+
+        @keyframes slide-bounce-right {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(8px); }
+        }
+
+        #scroll-container.bounce-down { animation: slide-bounce-down 0.3s ease-out; }
+        #scroll-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
+        #scroll-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
+        #scroll-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
+        
+        body.mode-zoom .slide { display: none; }
+        body.mode-zoom .zoom-container {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg); z-index: 100; overflow: auto;
+        }
+        body.mode-zoom .zoom-content {
+            /* No size restrictions — let container scroll */
+        }
+        
+        .debug-panel { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 12px; z-index: 1000; border: 1px solid var(--accent); min-width: 280px; }
+        .debug-panel .row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .debug-panel .label { color: var(--text-dim); }
+        .debug-panel .value { color: var(--accent); font-weight: bold; }
+        .debug-panel .log { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); max-height: 150px; overflow-y: auto; }
+        .debug-panel .log-entry { color: var(--text-dim); font-size: 11px; margin: 2px 0; }
+        
+        .keyboard-hint { position: fixed; bottom: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 12px; color: var(--text-dim); z-index: 50; }
+        .keyboard-hint kbd { display: inline-block; padding: 2px 6px; background: var(--surface2); border-radius: 4px; font-family: monospace; font-size: 11px; margin: 0 2px; }
+    </style>
+</head>
+<body>
+
+<div class="debug-panel" id="debugPanel">
+    <div class="row"><span class="label">State:</span><span class="value" id="dbgState">DOC</span></div>
+    <div class="row"><span class="label">Slide:</span><span class="value" id="dbgSlide">0 / 0</span></div>
+    <div class="row"><span class="label">Focus Index:</span><span class="value" id="dbgFocus">-1</span></div>
+    <div class="row"><span class="label">Focusables:</span><span class="value" id="dbgFocusables">0</span></div>
+    <div class="log" id="dbgLog"></div>
+</div>
+
+<div id="scroll-container">
+
+<div class="slide cover">
+    <div>
+        <h1>Focus Matrix Test</h1>
+        <p class="subtitle">按 Enter 进入 PPT 模式</p>
+    </div>
+</div>
+
+<div class="slide">
+    <span class="slide-number">01</span>
+    <div class="content">
+        <h2>2 Diagrams: A ↔ B</h2>
+        <div class="test-label">Both focusable → ←→ switches A ↔ B</div>
+        <div class="diagram-grid cols-2">
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">A (focusable)</div>
+            </div>
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">B (focusable)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <span class="slide-number">02</span>
+    <div class="content">
+        <h2>2 Diagrams: No Focus</h2>
+        <div class="test-label">Both no-focus → no activation</div>
+        <div class="diagram-grid cols-2">
+            <div class="diagram-focusable no-focus" data-focusable>
+                <div class="diagram-box non-focus">A (no-focus)</div>
+            </div>
+            <div class="diagram-focusable no-focus" data-focusable>
+                <div class="diagram-box non-focus">B (no-focus)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <span class="slide-number">03</span>
+    <div class="content">
+        <h2>3 Diagrams: A ↔ C (skip B)</h2>
+        <div class="test-label">A(focus) B(no-focus) C(focus) → skip B</div>
+        <div class="diagram-grid cols-3">
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">A (focusable)</div>
+            </div>
+            <div class="diagram-focusable no-focus" data-focusable>
+                <div class="diagram-box non-focus">B (no-focus)</div>
+            </div>
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">C (focusable)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <span class="slide-number">04</span>
+    <div class="content">
+        <h2>4 Diagrams: A ↔ C ↔ D</h2>
+        <div class="test-label">A(focus) B(no-focus) C(focus) D(focus) → A↔C↔D</div>
+        <div class="diagram-grid cols-4" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">A (focus)</div>
+            </div>
+            <div class="diagram-focusable no-focus" data-focusable>
+                <div class="diagram-box non-focus">B (no-focus)</div>
+            </div>
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">C (focus)</div>
+            </div>
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">D (focus)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide">
+    <span class="slide-number">05</span>
+    <div class="content">
+        <h2>1 Diagram: No Switch</h2>
+        <div class="test-label">Single focusable → no activation</div>
+        <div class="diagram-grid" style="max-width: 300px;">
+            <div class="diagram-focusable" data-focusable>
+                <div class="diagram-box focusable">Only A</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide cover">
+    <div>
+        <h1>End</h1>
+        <p class="subtitle">按 Esc 返回 Doc 模式</p>
+    </div>
+</div>
+
+</div>
+
+<div class="keyboard-hint">
+    <kbd>Enter</kbd> PPT · <kbd>Esc</kbd> Doc · <kbd>↑↓</kbd> Scroll/翻页 · <kbd>←→</kbd> Scroll/切换焦点
+</div>
+
+<script>
+// ===== State Machine =====
+let currentState = 'DOC'; // DOC | PPT_FULL | PPT_ZOOM
+let currentSlideIndex = 0;
+let focusedDiagramIndex = -1;
+let isAtScrollBoundary = false;
+let zoomTarget = null;
+
+// ===== Keyboard Handler =====
+document.addEventListener('keydown', (e) => {
+    const slides = document.querySelectorAll('.slide');
+    
+    switch(currentState) {
+        case 'DOC':
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                enterPPTMode();
+            }
+            break;
+            
+        case 'PPT_FULL':
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                enterDocMode();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const focused = document.querySelector('.diagram-focusable.focused');
+                if (focused) enterZoomMode(focused);
+            } else if (e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                if (isAtScrollBoundary) {
+                    navigateSlide(1);
+                } else if (canScrollVertically(1)) {
+                    scrollSlideContent(1, 'y');
+                    if (!canScrollVertically(1)) {
+                        isAtScrollBoundary = true;
+                        triggerBounce(1, 'y');
+                    }
+                } else {
+                    navigateSlide(1);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (isAtScrollBoundary) {
+                    navigateSlide(-1);
+                } else if (canScrollVertically(-1)) {
+                    isAtScrollBoundary = false;
+                    scrollSlideContent(-1, 'y');
+                    if (!canScrollVertically(-1)) {
+                        isAtScrollBoundary = true;
+                        triggerBounce(-1, 'y');
+                    }
+                } else {
+                    navigateSlide(-1);
+                }
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (isAtScrollBoundary) {
+                    handleFocusSwitch('ArrowRight');
+                } else if (canScrollHorizontally(1)) {
+                    scrollSlideContent(1, 'x');
+                    if (!canScrollHorizontally(1)) {
+                        isAtScrollBoundary = true;
+                        triggerBounce(1, 'x');
+                    }
+                } else {
+                    handleFocusSwitch('ArrowRight');
+                }
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (isAtScrollBoundary) {
+                    handleFocusSwitch('ArrowLeft');
+                } else if (canScrollHorizontally(-1)) {
+                    isAtScrollBoundary = false;
+                    scrollSlideContent(-1, 'x');
+                    if (!canScrollHorizontally(-1)) {
+                        isAtScrollBoundary = true;
+                        triggerBounce(-1, 'x');
+                    }
+                } else {
+                    handleFocusSwitch('ArrowLeft');
+                }
+            }
+            break;
+            
+        case 'PPT_ZOOM':
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                exitZoomMode();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                scrollZoomContainer('left');
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                scrollZoomContainer('right');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!scrollZoomContainer('up')) {
+                    exitZoomMode();
+                    navigateSlide(-1);
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!scrollZoomContainer('down')) {
+                    exitZoomMode();
+                    navigateSlide(1);
+                }
+            }
+            break;
+    }
+});
+
+// ===== Mode Switch Functions =====
+function enterPPTMode() {
+    currentState = 'PPT_FULL';
+    isAtScrollBoundary = false;
+    document.body.className = 'mode-ppt';
+    const container = document.getElementById('scroll-container');
+    if (container) container.classList.add('mode-ppt');
+    
+    const slides = document.querySelectorAll('.slide');
+    const scrollTop = container ? container.scrollTop : window.scrollY;
+    const viewportCenter = scrollTop + window.innerHeight / 2;
+    let nearestIndex = 0;
+    let minDistance = Infinity;
+    
+    slides.forEach((slide, i) => {
+        const slideTop = slide.offsetTop - (container ? container.offsetTop : 0);
+        const slideCenter = slideTop + slide.offsetHeight / 2;
+        const distance = Math.abs(slideCenter - viewportCenter);
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestIndex = i;
+        }
+    });
+    
+    currentSlideIndex = nearestIndex;
+    slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+    updateFocus();
+}
+
+function enterDocMode() {
+    currentState = 'DOC';
+    document.body.className = '';
+    const container = document.getElementById('scroll-container');
+    if (container) container.classList.remove('mode-ppt');
+    clearFocus();
+    const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+    if (slide) { const target = slide.offsetTop + slide.offsetHeight / 2 - window.innerHeight / 2; window.scrollTo({ top: Math.max(0, target), behavior: 'instant' }); }
+}
+
+function enterZoomMode(element) {
+    currentState = 'PPT_ZOOM';
+    zoomTarget = element;
+    document.body.className = 'mode-zoom';
+    
+    const container = document.createElement('div');
+    container.className = 'zoom-container';
+    const clone = element.cloneNode(true);
+    clone.classList.add('zoom-content');
+    container.appendChild(clone);
+    document.body.appendChild(container);
+}
+
+function exitZoomMode() {
+    currentState = 'PPT_FULL';
+    document.body.className = 'mode-ppt';
+    const container = document.getElementById('scroll-container');
+    if (container) container.classList.add('mode-ppt');
+    
+    const zoomContainer = document.querySelector('.zoom-container');
+    if (zoomContainer) zoomContainer.remove();
+    zoomTarget = null;
+    
+    const slides = document.querySelectorAll('.slide');
+    if (slides[currentSlideIndex]) {
+        const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
+        window.scrollTo({ top: targetTop, behavior: 'instant' });
+    }
+    
+    updateFocus(true);
+}
+
+// ===== Navigation Functions =====
+function navigateSlide(direction) {
+    const slides = document.querySelectorAll('.slide');
+    const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
+    
+    if (newIndex !== currentSlideIndex) {
+        currentSlideIndex = newIndex;
+        isAtScrollBoundary = false;
+        slides[newIndex].scrollIntoView({ behavior: 'instant' });
+        updateFocus();
+    }
+}
+
+function updateFocus(preserveIndex = false) {
+    const savedIndex = focusedDiagramIndex;
+    clearFocus();
+    if (!preserveIndex) isAtScrollBoundary = false;
+    const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+    if (!slide) return;
+    
+    const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+        .filter(el => !el.classList.contains('no-focus'));
+    if (focusables.length > 0) {
+        if (!preserveIndex || savedIndex < 0 || savedIndex >= focusables.length) {
+            focusedDiagramIndex = 0;
+        } else {
+            focusedDiagramIndex = savedIndex;
+        }
+        focusables[focusedDiagramIndex].classList.add('focused');
+    }
+}
+
+function clearFocus() {
+    document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+        el.classList.remove('focused');
+    });
+    focusedDiagramIndex = -1;
+}
+
+function handleFocusSwitch(key) {
+    const slide = document.querySelectorAll('.slide')[currentSlideIndex];
+    if (!slide) return;
+    
+    const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+        .filter(el => !el.classList.contains('no-focus'));
+    if (focusables.length <= 1) return;
+    
+    let newIndex;
+    if (key === 'ArrowRight') {
+        newIndex = Math.min(focusedDiagramIndex + 1, focusables.length - 1);
+    } else {
+        newIndex = Math.max(focusedDiagramIndex - 1, 0);
+    }
+    
+    focusedDiagramIndex = newIndex;
+    
+    document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+        el.classList.remove('focused');
+    });
+    focusables[focusedDiagramIndex].classList.add('focused');
+}
+
+// ===== Zoom Scroll Functions =====
+function scrollZoomContainer(direction) {
+    const container = document.querySelector('.zoom-container');
+    if (!container) return false;
+    
+    const scrollAmount = 100;
+    const { scrollTop, scrollLeft, scrollHeight, scrollWidth, clientHeight, clientWidth } = container;
+    
+    switch(direction) {
+        case 'up':
+            if (scrollTop <= 0) return false;
+            container.scrollTop -= scrollAmount;
+            return true;
+        case 'down':
+            if (scrollTop + clientHeight >= scrollHeight) return false;
+            container.scrollTop += scrollAmount;
+            return true;
+        case 'left':
+            container.scrollLeft -= scrollAmount;
+            return true;
+        case 'right':
+            container.scrollLeft += scrollAmount;
+            return true;
+    }
+    return false;
+}
+
+// ===== Scroll Within Slide Functions =====
+function canScrollVertically(direction) {
+    const container = document.getElementById('scroll-container');
+    if (!container) return false;
+    const slides = document.querySelectorAll('.slide');
+    const slide = slides[currentSlideIndex];
+    if (!slide) return false;
+    
+    const containerScrollTop = container.scrollTop;
+    const containerHeight = container.clientHeight;
+    const slideTop = slide.offsetTop - container.offsetTop;
+    const slideBottom = slideTop + slide.offsetHeight;
+    
+    if (direction > 0) {
+        return containerScrollTop + containerHeight < slideBottom - 10;
+    } else {
+        return containerScrollTop > slideTop + 10;
+    }
+}
+
+function canScrollHorizontally(direction) {
+    const container = document.getElementById('scroll-container');
+    if (!container) return false;
+    const slides = document.querySelectorAll('.slide');
+    const slide = slides[currentSlideIndex];
+    if (!slide) return false;
+    
+    const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
+        .filter(el => !el.classList.contains('no-focus'));
+    if (focusables.length === 0 || focusedDiagramIndex < 0 || focusedDiagramIndex >= focusables.length) return false;
+    
+    const focused = focusables[focusedDiagramIndex];
+    const diagramWidth = focused.scrollWidth;
+    const containerWidth = container.clientWidth;
+    
+    if (diagramWidth <= containerWidth + 10) return false;
+    
+    if (direction > 0) {
+        return container.scrollLeft + containerWidth < diagramWidth - 10;
+    } else {
+        return container.scrollLeft > 10;
+    }
+}
+
+function scrollSlideContent(direction, axis) {
+    const container = document.getElementById('scroll-container');
+    if (!container) return false;
+    
+    const oldSnap = container.style.scrollSnapType;
+    container.style.scrollSnapType = 'none';
+    
+    const dimension = axis === 'y' ? 'clientHeight' : 'clientWidth';
+    const scrollProp = axis === 'y' ? 'scrollTop' : 'scrollLeft';
+    const step = container[dimension] * 0.8;
+    
+    container.scrollTo({
+        [axis === 'y' ? 'top' : 'left']: container[scrollProp] + direction * step,
+        behavior: 'smooth'
+    });
+    
+    setTimeout(() => {
+        container.style.scrollSnapType = oldSnap || 'y proximity';
+    }, 500);
+    
+    return true;
+}
+
+function triggerBounce(direction, axis) {
+    const container = document.getElementById('scroll-container');
+    if (!container) return;
+    
+    const bounceClass = axis === 'y'
+        ? (direction > 0 ? 'bounce-down' : 'bounce-up')
+        : (direction > 0 ? 'bounce-right' : 'bounce-left');
+    
+    container.classList.add(bounceClass);
+    setTimeout(() => container.classList.remove(bounceClass), 300);
+}
+
+// ===== Mermaid Initialization =====
+window.addEventListener('load', () => {
+    document.querySelectorAll('.mermaid svg, img').forEach(el => {
+        const rect = el.getBoundingClientRect();
+        const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;
+        if (needsZoom) {
+            const wrapper = el.closest('.diagram-focusable') || el.parentElement;
+            if (wrapper) wrapper.classList.add('needs-zoom');
+        }
+    });
+});
+
+// ===== Test Infrastructure: Expose state to window =====
+Object.defineProperty(window, 'currentState', { get: () => currentState });
+Object.defineProperty(window, 'currentSlideIndex', { get: () => currentSlideIndex });
+Object.defineProperty(window, 'focusedDiagramIndex', { get: () => focusedDiagramIndex });
+Object.defineProperty(window, 'isAtScrollBoundary', { get: () => isAtScrollBoundary });
+</script>
+
+</body>
+</html>
