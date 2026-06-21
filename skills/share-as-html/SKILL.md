@@ -1,5 +1,5 @@
 ---
-name: sharing-in-html
+name: share-as-html
 description: Create rich HTML sharing/presentation documents with doc/ppt/zoom modes. Use when creating technical sharing slides, demo presentations, or knowledge sharing HTML docs. Supports dark theme, mermaid diagrams, keyboard navigation.
 ---
 

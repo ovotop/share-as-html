@@ -1,18 +1,18 @@
-# AGENTS.md — sharing-in-html
+# AGENTS.md — share-as-html
 
 ## What this repo is
 
-Development & testing workspace for the `sharing-in-html` OpenCode skill. This repo holds test HTML pages, Playwright tests, OpenSpec change management, shared output documents, and the canonical skill source.
+Development & testing workspace for the `share-as-html` OpenCode skill. This repo holds test HTML pages, Playwright tests, OpenSpec change management, shared output documents, and the canonical skill source.
 
 ## Skill deployment
 
-The **canonical source** for the skill is `skills/sharing-in-html/SKILL.md` — this is the git-tracked version. The **deployed** skill lives at `.opencode/skills/sharing-in-html/SKILL.md` (project-level, gitignored by `.gitignore`). When iterating on the skill:
+The **canonical source** for the skill is `skills/share-as-html/SKILL.md` — this is the git-tracked version. The **deployed** skill lives at `.opencode/skills/share-as-html/SKILL.md` (project-level, gitignored by `.gitignore`). When iterating on the skill:
 
-1. Edit `skills/sharing-in-html/SKILL.md` in this repo
-2. Sync to `.opencode/skills/sharing-in-html/SKILL.md` for OpenCode to pick up changes
+1. Edit `skills/share-as-html/SKILL.md` in this repo
+2. Sync to `.opencode/skills/share-as-html/SKILL.md` for OpenCode to pick up changes
 3. Commit the change to track it in git
 
-The `.opencode/skills/` directory also contains OpenSpec project skills (`openspec-*`). The `skills/` directory at repo root is for the published sharing-in-html skill.
+The `.opencode/skills/` directory also contains OpenSpec project skills (`openspec-*`). The `skills/` directory at repo root is for the published share-as-html skill.
 
 ## File architecture
 
@@ -106,7 +106,7 @@ Project-level openspec skills live at `.opencode/skills/openspec-*`. Commands at
 
 ## Key gotcha: two repo locations
 
-This repo is at `/home/mi/Documents/skills/sharing-in-html/`. The Playwright test harness loads files from `/home/mi/Documents/harness/tooling/documenting/sharing-in-html/`. These are **different directories**. Changes made here must be manually synced to the harness directory before running tests.
+This repo is at `/home/mi/Documents/skills/share-as-html/`. The Playwright test harness loads files from `/home/mi/Documents/harness/tooling/documenting/sharing-in-html/`. These are **different directories**. Changes made here must be manually synced to the harness directory before running tests.
 
 ## Scope discovery rule (from RETROSPECTIVE.md)
 

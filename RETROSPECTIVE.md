@@ -1,4 +1,4 @@
-# 复盘记录：sharing-in-html PPT overflow-scroll Scope 遗漏事件
+# 复盘记录：share-as-html PPT overflow-scroll Scope 遗漏事件
 
 **日期**: 2026-06-18  
 **会话**: `20260618-21-34-14-PPT返回DOC场景spec与实现一致性检查(复盘).md`  
