@@ -66,6 +66,31 @@ Supported custom tags in Markdown body:
 - `<callout type="info|warn|tip">...</callout>` → callout box
 - `<steps><step>...</step></steps>` → numbered steps
 
+**Wrapping content in layout blocks:**
+
+When you need to group markdown content into a single grid cell (e.g., text all in left column, image in right), use `<div markdown="1">`:
+
+```markdown
+---
+slide: 1
+layout: grid
+cols: 2
+---
+
+<div markdown="1">
+
+# Title
+## Subtitle
+
+Content here. **Bold** works. [Links](url) work.
+
+</div>
+
+![QR code](assets/qr.png)
+```
+
+Without `markdown="1"`, content inside HTML blocks would be treated as raw HTML and markdown syntax would not be processed.
+
 Separate visual and reader layers with:
 ```markdown
 <!-- reader -->

@@ -14,6 +14,7 @@ import html
 import os
 import re
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Optional
 
@@ -895,6 +896,75 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 # Data Structures
 # ============================================================================
 
+class _BlockSplitter(HTMLParser):
+    """Split HTML into top-level block elements, respecting nested tags."""
+
+    _VOID_TAGS = frozenset({"img", "hr", "br", "input", "source", "link", "meta", "area", "base", "col", "embed", "track", "wbr"})
+
+    def __init__(self):
+        super().__init__()
+        self.blocks: list[str] = []
+        self._buf: list[str] = []
+        self._depth = 0
+        self._root_tag: str | None = None
+
+    def _append_tag(self, s: str):
+        if self._depth == 0:
+            self._buf = [s]
+            self._root_tag = None
+        else:
+            self._buf.append(s)
+
+    def handle_starttag(self, tag, attrs):
+        a = "".join(f' {k}="{v}"' for k, v in attrs)
+        if tag in self._VOID_TAGS:
+            s = f"<{tag}{a} />"
+            if self._depth == 0:
+                self.blocks.append(s)
+            else:
+                self._buf.append(s)
+            return
+        s = f"<{tag}{a}>"
+        if self._depth == 0:
+            self._buf = [s]
+            self._root_tag = tag
+        else:
+            self._buf.append(s)
+        self._depth += 1
+
+    def handle_startendtag(self, tag, attrs):
+        a = "".join(f' {k}="{v}"' for k, v in attrs)
+        s = f"<{tag}{a} />"
+        if self._depth == 0:
+            self.blocks.append(s)
+        else:
+            self._buf.append(s)
+
+    def handle_endtag(self, tag):
+        self._buf.append(f"</{tag}>")
+        self._depth -= 1
+        if self._depth == 0 and tag == self._root_tag:
+            self.blocks.append("".join(self._buf))
+            self._buf = []
+            self._root_tag = None
+
+    def handle_data(self, data):
+        self._buf.append(data)
+
+    def handle_entityref(self, name):
+        self._buf.append(f"&{name};")
+
+    def handle_charref(self, name):
+        self._buf.append(f"&#{name};")
+
+
+def split_top_level_blocks(html_str: str) -> list[str]:
+    """Split HTML string into top-level block elements."""
+    splitter = _BlockSplitter()
+    splitter.feed(html_str)
+    return splitter.blocks
+
+
 class Slide:
     """Represents a single presentation slide."""
 
@@ -933,12 +1003,28 @@ class Slide:
         )
 
         if self.layout == "grid":
-            cards = re.findall(r'<div class="card[^"]*">.*?</div>', inner, re.DOTALL)
-            remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
-            remaining = re.sub(r'<p>\s*</p>', '', remaining)
-            remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
-            grid_html = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(cards)}</div>'
-            return heading + grid_html + remaining
+            blocks = split_top_level_blocks(inner)
+            blocks = [b for b in blocks if b.strip()]
+            if blocks:
+                # Separate leading card blocks from the rest:
+                # cards → grid, everything else → full-width below
+                card_end = 0
+                for b in blocks:
+                    if '<div class="card' in b:
+                        card_end += 1
+                    else:
+                        break
+                
+                if card_end > 0 and card_end < len(blocks):
+                    card_blocks = blocks[:card_end]
+                    other_blocks = blocks[card_end:]
+                    result = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(card_blocks)}</div>'
+                    result += "".join(other_blocks)
+                    return heading + result
+                else:
+                    grid_html = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(blocks)}</div>'
+                    return heading + grid_html
+            return heading + inner
 
         elif self.layout == "flex":
             inner = f'<div class="flex-row" style="gap:{self.gap}px">{inner}</div>'
@@ -1183,6 +1269,13 @@ def restore_mermaid_blocks(raw_html: str, mermaid_blocks: list[str]) -> str:
     )
 
 
+def fix_image_paths(html_str: str) -> str:
+    """Adjust local image paths from assets/ to ../assets/ for output/ directory."""
+    html_str = re.sub(r"""src="assets/""", r"""src="../assets/""", html_str)
+    html_str = re.sub(r"src='assets/", r"src='../assets/", html_str)
+    return html_str
+
+
 def parse_slide(filepath: str) -> Optional[Slide]:
     """Parse a single slide .md file into a Slide object."""
     with open(filepath, "r", encoding="utf-8") as f:
@@ -1209,9 +1302,11 @@ def parse_slide(filepath: str) -> Optional[Slide]:
 
     # Convert Markdown body to HTML
     md = markdown.Markdown(
-        extensions=["extra", "codehilite", "fenced_code", "tables"]
+        extensions=["extra", "md_in_html", "codehilite", "fenced_code", "tables"]
     )
     body_html = md.convert(body)
+
+    body_html = fix_image_paths(body_html)
 
     # Restore mermaid placeholders (must be before process_custom_tags to keep tag content intact)
     body_html = restore_mermaid_blocks(body_html, mermaid_blocks)

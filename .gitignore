@@ -5,3 +5,9 @@ package-lock.json
 .inhtml/
 test-results/
 conversations/
+
+# 临时文件
+tmp/
+
+# python
+**/*.pyc

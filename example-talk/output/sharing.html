@@ -446,7 +446,14 @@ body.mode-zoom .reader-narrative { display: none; }
 
 @media print {
     .slide { page-break-after: always; min-height: auto; padding: 40px; }
-}</style>    <style>/* override.css — 人类调整布局和风格 */
+}
+
+/* Doc Footer (DOC mode only) */
+.doc-footer { text-align: center; padding: 24px 0 32px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--surface2); margin-top: 48px; }
+.doc-footer a { color: var(--text-dim); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.doc-footer a:hover { color: var(--accent); }
+.doc-footer img { vertical-align: middle; }
+body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>    <style>/* override.css — 人类调整布局和风格 */
 /* 修改后重新运行 python md2html.py example-talk/ 即可生效 */
 
 /* 示例：让第三页的卡片更大 */
@@ -487,9 +494,9 @@ body.mode-zoom .reader-narrative { display: none; }
                 - 可脚本化、可组合、可自动化
                 - 为 AI Agent 提供标准化工具接口
                 - 轻量、快速、无 GUI 依赖
-                </div></div><p><div class="callout callout-info">
+                </div><p><div class="callout callout-info">
                 <strong>思考</strong>: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？
-                </div></p>
+                </div></p></div>
             </div>
             <div class="reader-narrative">
                 <p>在 Android 开发生态中，命令行工具长期处于次要地位。
@@ -520,7 +527,7 @@ body.mode-zoom .reader-narrative { display: none; }
                 设备发现与管理、任务调度、状态机、插件系统
                 </div><div class="card"><h4>Reporter</h4>
                 HTML 报告输出、JSON 格式化、实时日志、性能统计
-                </div></div><div class="diagram-focusable" data-focusable><div class="mermaid">
+                </div><p><div class="diagram-focusable" data-focusable="None"><div class="mermaid">
                 graph TD
                     A[CLI Layer] --> B[Core Engine]
                     B --> C[ADB Bridge]
@@ -530,7 +537,7 @@ body.mode-zoom .reader-narrative { display: none; }
                     D --> G[Reporter]
                     E --> G
                     G --> H[HTML Output]
-                </div></div>
+                </div></div></p></div>
             </div>
             <div class="reader-narrative">
                 <p>Android CLI 采用经典的三层架构：</p>
@@ -573,6 +580,12 @@ body.mode-zoom .reader-narrative { display: none; }
                 继续演进，支持更多设备操作、更丰富的报告格式，
                 以及更紧密的 AI Agent 集成。</p>
             </div>
+        </div>
+        <div class="doc-footer">
+            <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
+                <img src="https://avatars.githubusercontent.com/u/166823538?s=32" alt="ovotop" width="16" height="16">
+                Powered by ovotop/share-as-html
+            </a>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
