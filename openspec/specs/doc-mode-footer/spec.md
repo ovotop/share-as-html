@@ -38,11 +38,12 @@ The footer SHALL NOT be visible when the document is in PPT_FULL or PPT_ZOOM mod
 
 The footer SHALL display:
 
-- An ovotop organization icon image sourced from GitHub (`https://avatars.githubusercontent.com/u/166823538?s=32`)
-- The text "Powered by ovotop/share-as-html"
+- The text "Powered by"
+- An ovotop organization icon image sourced from GitHub (`https://avatars.githubusercontent.com/u/61374409?s=96&v=4`), sized at 32×32 pixels
+- The text "ovotop/share-as-html"
 - The entire footer SHALL be a hyperlink to `https://github.com/ovotop/share-as-html`
 
-The image SHALL have `alt="ovotop"` for accessibility. The link SHALL open in a new tab (`target="_blank"`) with `rel="noopener"`.
+The image SHALL have `alt="ovotop"` and `width="32" height="32"` for accessibility. The link SHALL open in a new tab (`target="_blank"`) with `rel="noopener"`.
 
 #### Scenario: Footer link opens GitHub in new tab
 

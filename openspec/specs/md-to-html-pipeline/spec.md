@@ -67,7 +67,7 @@ The output HTML file SHALL be self-contained:
 - All JavaScript SHALL be embedded in a `<script>` tag
 - Mermaid SHALL be loaded from CDN (`https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js`)
 - Images from `assets/` SHALL be embedded as base64 data URIs (for images ≤ 1MB) or referenced by relative path
-- The footer's ovotop icon SHALL be loaded from external URL (`https://avatars.githubusercontent.com/u/166823538?s=32`) and is exempt from the base64 embedding rule
+- The footer's ovotop icon SHALL be loaded from external URL (`https://avatars.githubusercontent.com/u/61374409?s=96&v=4`) and is exempt from the base64 embedding rule
 
 #### Scenario: Single file sharing
 

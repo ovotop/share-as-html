@@ -1159,8 +1159,7 @@ Use this as the starting template for generated documents:
 
         <div class="doc-footer">
             <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
-                <img src="https://avatars.githubusercontent.com/u/166823538?s=32" alt="ovotop" width="16" height="16">
-                Powered by ovotop/share-as-html
+                Powered by <img src="https://avatars.githubusercontent.com/u/61374409?s=96&v=4" alt="ovotop" width="48" height="48"> ovotop/share-as-html
             </a>
         </div>
     </div>
