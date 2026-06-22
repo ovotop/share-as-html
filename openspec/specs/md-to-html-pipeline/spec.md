@@ -82,6 +82,16 @@ The script SHALL use the existing CSS and JS from the `share-as-html` skill as-i
 - **WHEN** user is in PPT mode and presses Esc
 - **THEN** the page SHALL return to DOC mode with free scrolling
 
+#### Scenario: Fluid typography in generated HTML
+
+- **WHEN** md2html.py generates output HTML
+- **THEN** the CSS SHALL contain `clamp()` font-size values and `.slide { align-items: center; }`
+
+#### Scenario: PPT mode wider content in generated HTML
+
+- **WHEN** md2html.py generates output HTML
+- **THEN** the CSS SHALL contain `body.mode-ppt .slide .content { max-width: 1100px; }`
+
 ### Requirement: Template architecture
 
 The script SHALL use a Jinja2 template with the following structure:

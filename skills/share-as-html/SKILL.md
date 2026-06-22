@@ -147,6 +147,7 @@ code, pre {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     border-bottom: none;
     position: relative;
 }
@@ -167,7 +168,7 @@ code, pre {
 }
 
 .cover h1 {
-    font-size: 48px;
+    font-size: clamp(32px, 5vw, 48px);
     font-weight: 700;
     margin-bottom: 16px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
@@ -195,7 +196,7 @@ code, pre {
 
 /* ===== Typography ===== */
 h2 {
-    font-size: 36px;
+    font-size: clamp(24px, 4vw, 36px);
     font-weight: 600;
     margin-bottom: 24px;
     display: flex;
@@ -208,7 +209,7 @@ h2 .emoji {
 }
 
 h3 {
-    font-size: 22px;
+    font-size: clamp(17px, 2.5vw, 22px);
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 16px;
@@ -218,6 +219,7 @@ h3 {
 p {
     margin-bottom: 12px;
     color: var(--text);
+    font-size: clamp(14px, 1.5vw, 16px);
 }
 
 /* ===== Points / List Items ===== */
@@ -253,7 +255,7 @@ p {
 }
 
 .card h4 {
-    font-size: 16px;
+    font-size: clamp(14px, 1.5vw, 16px);
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--accent);
@@ -423,6 +425,7 @@ ul {
 ul li {
     padding: 6px 0 6px 20px;
     position: relative;
+    font-size: clamp(14px, 1.5vw, 16px);
 }
 
 ul li::before {
@@ -480,7 +483,10 @@ body.mode-ppt .slide {
     border-bottom: 1px solid var(--border);
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    align-items: center;
 }
+
+body.mode-ppt .slide .content { max-width: 1100px; }
 
 #scroll-container.mode-ppt {
     scroll-snap-type: y proximity;
@@ -540,15 +546,10 @@ body.mode-zoom .zoom-content {
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
-    .slide {
-        padding: 32px 24px;
-    }
-    h2 {
-        font-size: 28px;
-    }
-    .cover h1 {
-        font-size: 32px;
-    }
+    .slide { padding: 24px 16px; }
+    body.mode-ppt .slide { padding: 40px 20px; }
+    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
+    .flex-row { flex-direction: column; }
 }
 ```
 

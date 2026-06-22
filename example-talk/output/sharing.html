@@ -39,6 +39,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     border-bottom: none;
     position: relative;
 }
@@ -58,7 +59,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 }
 
 .cover h1 {
-    font-size: 48px;
+    font-size: clamp(32px, 5vw, 48px);
     font-weight: 700;
     margin-bottom: 16px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
@@ -81,7 +82,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 .content { max-width: 900px; width: 100%; }
 
 h2 {
-    font-size: 36px;
+    font-size: clamp(24px, 4vw, 36px);
     font-weight: 600;
     margin-bottom: 24px;
     display: flex;
@@ -92,14 +93,14 @@ h2 {
 h2 .emoji { font-size: 32px; }
 
 h3 {
-    font-size: 22px;
+    font-size: clamp(17px, 2.5vw, 22px);
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 16px;
     margin-top: 24px;
 }
 
-p { margin-bottom: 12px; color: var(--text); }
+p { margin-bottom: 12px; color: var(--text); font-size: clamp(14px, 1.5vw, 16px); }
 
 .point {
     padding: 12px 16px;
@@ -128,7 +129,7 @@ p { margin-bottom: 12px; color: var(--text); }
 }
 
 .card h4 {
-    font-size: 16px;
+    font-size: clamp(14px, 1.5vw, 16px);
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--accent);
@@ -151,9 +152,6 @@ p { margin-bottom: 12px; color: var(--text); }
     margin: 16px 0;
 }
 
-@media (max-width: 768px) {
-    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
-}
 
 pre {
     background: var(--surface);
@@ -267,6 +265,7 @@ ul {
 ul li {
     padding: 6px 0 6px 20px;
     position: relative;
+    font-size: clamp(14px, 1.5vw, 16px);
 }
 
 ul li::before {
@@ -378,7 +377,10 @@ body.mode-ppt .slide {
     border-bottom: 1px solid var(--border);
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    align-items: center;
 }
+
+body.mode-ppt .slide .content { max-width: 1100px; }
 
 body.mode-ppt .reader-narrative { display: none; }
 
@@ -436,10 +438,9 @@ body.mode-zoom .reader-narrative { display: none; }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .slide { padding: 32px 24px; }
-    body.mode-ppt .slide { padding: 40px 24px; }
-    h2 { font-size: 28px; }
-    .cover h1 { font-size: 32px; }
+    .slide { padding: 24px 16px; }
+    body.mode-ppt .slide { padding: 40px 20px; }
+    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
 }
 
@@ -475,22 +476,20 @@ body.mode-zoom .reader-narrative { display: none; }
         <div class="slide " data-slide="2">
             <span class="slide-number">02</span>
             <div class="content">
-                <div class="grid-2" style="--grid-cols:2; --grid-gap:24px; gap:24px"><h2>为什么 Android 需要 CLI？</h2>
-                <p><div class="card"><h4>传统痛点</h4>
+                <h2>为什么 Android 需要 CLI？</h2>
+                <div class="grid-2" style="--grid-cols:2; --grid-gap:24px; gap:24px"><div class="card"><h4>传统痛点</h4>
                 - Android Studio 启动慢、吃内存
                 - CI/CD 流程依赖 IDE 不现实
                 - AI Agent 需要轻量交互入口
                 - 跨平台脚本化操作困难
-                </div></p>
-                <p><div class="card"><h4>CLI 的价值</h4>
+                </div><div class="card"><h4>CLI 的价值</h4>
                 - 单一入口，统一管理所有 Android 操作
                 - 可脚本化、可组合、可自动化
                 - 为 AI Agent 提供标准化工具接口
                 - 轻量、快速、无 GUI 依赖
-                </div></p>
-                <p><div class="callout callout-info">
+                </div></div><p><div class="callout callout-info">
                 <strong>思考</strong>: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？
-                </div></p></div>
+                </div></p>
             </div>
             <div class="reader-narrative">
                 <p>在 Android 开发生态中，命令行工具长期处于次要地位。
@@ -514,26 +513,24 @@ body.mode-zoom .reader-narrative { display: none; }
         <div class="slide " data-slide="3">
             <span class="slide-number">03</span>
             <div class="content">
-                <div class="grid-3" style="--grid-cols:3; --grid-gap:20px; gap:20px"><h2>整体架构</h2>
-                <p><div class="card"><h4>CLI 入口</h4>
+                <h2>整体架构</h2>
+                <div class="grid-3" style="--grid-cols:3; --grid-gap:20px; gap:20px"><div class="card"><h4>CLI 入口</h4>
                 命令行解析、参数校验、帮助系统、子命令分发
-                </div></p>
-                <p><div class="card"><h4>Core 引擎</h4>
+                </div><div class="card"><h4>Core 引擎</h4>
                 设备发现与管理、任务调度、状态机、插件系统
-                </div></p>
-                <p><div class="card"><h4>Reporter</h4>
+                </div><div class="card"><h4>Reporter</h4>
                 HTML 报告输出、JSON 格式化、实时日志、性能统计
-                </div></p>
-                <div class="codehilite"><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">TD</span>
-                <span class="w">    </span><span class="n">A</span><span class="p">[</span><span class="n">CLI</span><span class="w"> </span><span class="n">Layer</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">B</span><span class="p">[</span><span class="n">Core</span><span class="w"> </span><span class="n">Engine</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">C</span><span class="p">[</span><span class="n">ADB</span><span class="w"> </span><span class="n">Bridge</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">D</span><span class="p">[</span><span class="n">Log</span><span class="w"> </span><span class="n">Parser</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">E</span><span class="p">[</span><span class="n">Task</span><span class="w"> </span><span class="n">Scheduler</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">C</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">F</span><span class="p">[</span><span class="n">Android</span><span class="w"> </span><span class="n">Device</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">D</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">G</span><span class="p">[</span><span class="n">Reporter</span><span class="p">]</span>
-                <span class="w">    </span><span class="n">E</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">G</span>
-                <span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">H</span><span class="p">[</span><span class="n">HTML</span><span class="w"> </span><span class="n">Output</span><span class="p">]</span>
-                </code></pre></div></div>
+                </div></div><div class="diagram-focusable" data-focusable><div class="mermaid">
+                graph TD
+                    A[CLI Layer] --> B[Core Engine]
+                    B --> C[ADB Bridge]
+                    B --> D[Log Parser]
+                    B --> E[Task Scheduler]
+                    C --> F[Android Device]
+                    D --> G[Reporter]
+                    E --> G
+                    G --> H[HTML Output]
+                </div></div>
             </div>
             <div class="reader-narrative">
                 <p>Android CLI 采用经典的三层架构：</p>

@@ -10,6 +10,7 @@ Output is a self-contained HTML file with DOC/PPT/Zoom modes.
 
 import argparse
 import base64
+import html
 import os
 import re
 import sys
@@ -61,6 +62,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     border-bottom: none;
     position: relative;
 }
@@ -80,7 +82,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 }
 
 .cover h1 {
-    font-size: 48px;
+    font-size: clamp(32px, 5vw, 48px);
     font-weight: 700;
     margin-bottom: 16px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
@@ -103,7 +105,7 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 .content { max-width: 900px; width: 100%; }
 
 h2 {
-    font-size: 36px;
+    font-size: clamp(24px, 4vw, 36px);
     font-weight: 600;
     margin-bottom: 24px;
     display: flex;
@@ -114,14 +116,14 @@ h2 {
 h2 .emoji { font-size: 32px; }
 
 h3 {
-    font-size: 22px;
+    font-size: clamp(17px, 2.5vw, 22px);
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 16px;
     margin-top: 24px;
 }
 
-p { margin-bottom: 12px; color: var(--text); }
+p { margin-bottom: 12px; color: var(--text); font-size: clamp(14px, 1.5vw, 16px); }
 
 .point {
     padding: 12px 16px;
@@ -150,7 +152,7 @@ p { margin-bottom: 12px; color: var(--text); }
 }
 
 .card h4 {
-    font-size: 16px;
+    font-size: clamp(14px, 1.5vw, 16px);
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--accent);
@@ -173,9 +175,6 @@ p { margin-bottom: 12px; color: var(--text); }
     margin: 16px 0;
 }
 
-@media (max-width: 768px) {
-    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
-}
 
 pre {
     background: var(--surface);
@@ -289,6 +288,7 @@ ul {
 ul li {
     padding: 6px 0 6px 20px;
     position: relative;
+    font-size: clamp(14px, 1.5vw, 16px);
 }
 
 ul li::before {
@@ -400,7 +400,10 @@ body.mode-ppt .slide {
     border-bottom: 1px solid var(--border);
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    align-items: center;
 }
+
+body.mode-ppt .slide .content { max-width: 1100px; }
 
 body.mode-ppt .reader-narrative { display: none; }
 
@@ -458,10 +461,9 @@ body.mode-zoom .reader-narrative { display: none; }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .slide { padding: 32px 24px; }
-    body.mode-ppt .slide { padding: 40px 24px; }
-    h2 { font-size: 28px; }
-    .cover h1 { font-size: 32px; }
+    .slide { padding: 24px 16px; }
+    body.mode-ppt .slide { padding: 40px 20px; }
+    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
 }
 
@@ -904,29 +906,45 @@ class Slide:
         self.is_cover: bool = (self.number == 1)
 
     def wrap_visual(self) -> str:
-        """Wrap visual HTML in the appropriate layout container."""
         inner = self.visual_html
 
+        heading = ""
+        m = re.match(r"<h[23][^>]*>.*?</h[23]>\s*", inner, re.DOTALL)
+        if m:
+            heading = m.group(0)
+            inner = inner[m.end():]
+
+        inner = re.sub(
+            r"<p>\s*(<(?:div class=\"(?:card|callout|steps|diagram)\"[^>]*>.*?</div>))\s*</p>",
+            r"\1", inner, flags=re.DOTALL,
+        )
+
         if self.layout == "grid":
-            inner = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{inner}</div>'
+            cards = re.findall(r'<div class="card[^"]*">.*?</div>', inner, re.DOTALL)
+            remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
+            remaining = re.sub(r'<p>\s*</p>', '', remaining)
+            remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
+            grid_html = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(cards)}</div>'
+            return heading + grid_html + remaining
 
         elif self.layout == "flex":
             inner = f'<div class="flex-row" style="gap:{self.gap}px">{inner}</div>'
-
         elif self.layout == "stack":
             inner = f'<div class="stack" style="gap:{self.gap}px">{inner}</div>'
-
         elif self.layout == "split":
             inner = f'<div class="split-layout" style="gap:{self.gap}px">{inner}</div>'
-
         elif self.layout == "default":
-            # Auto-detect: if multiple top-level cards, use grid
             card_count = inner.count('<div class="card')
             if card_count >= 2:
-                cols = min(card_count, 4)
-                inner = f'<div class="grid-{cols}">{inner}</div>'
+                cards = re.findall(r'<div class="card[^"]*">.*?</div>', inner, re.DOTALL)
+                remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
+                remaining = re.sub(r'<p>\s*</p>', '', remaining)
+                remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
+                cols = min(len(cards), 4)
+                grid_html = f'<div class="grid-{cols}">{"".join(cards)}</div>'
+                return heading + grid_html + remaining
 
-        return inner
+        return heading + inner
 
     def to_dict(self) -> dict[str, Any]:
         """Return slide data for Jinja2 template rendering."""
@@ -1089,20 +1107,24 @@ def process_custom_tags(html: str) -> str:
         flags=re.DOTALL,
     )
 
-    # Wrap mermaid divs with diagram-focusable for zoom support
-    html = re.sub(
-        r'(<div class="mermaid">)',
-        r'<div class="diagram-focusable" data-focusable>\1',
-        html,
-    )
-    # Close the wrapper after mermaid closing div
-    html = re.sub(
-        r'(</div>\s*)(?!.*</div>)',
-        lambda m: m.group(0),
-        html,
-    )
-
     return html
+
+
+def fix_mermaid_blocks(raw_html: str) -> str:
+
+    def replace_mermaid(m: re.Match) -> str:
+        raw = m.group(1)
+        raw = re.sub(r'<[^>]+>', '', raw)
+        raw = html.unescape(raw)
+        raw = raw.strip()
+        return f'<div class="diagram-focusable" data-focusable><div class="mermaid">\n{raw}\n</div></div>'
+
+    return re.sub(
+        r'<div class="codehilite"><pre><span></span><code>(.*?)</code></pre></div>',
+        replace_mermaid,
+        raw_html,
+        flags=re.DOTALL,
+    )
 
 
 def parse_slide(filepath: str) -> Optional[Slide]:
@@ -1127,6 +1149,9 @@ def parse_slide(filepath: str) -> Optional[Slide]:
 
     # Process custom tags
     body_html = process_custom_tags(body_html)
+
+    # Fix mermaid code blocks
+    body_html = fix_mermaid_blocks(body_html)
 
     # Split visual/reader layers
     visual_html, reader_html = split_visual_reader(body_html)
