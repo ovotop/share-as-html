@@ -1,31 +1,30 @@
 ---
 slide: 2
 duration: 5min
-layout: grid
-cols: 2
-gap: 24
 emoji: 🤔
+layout:
+  grid:
+    - [{card: "传统痛点"}, {card: "CLI 的价值"}]
+    - [{callout: "info"}]
 ---
 
 ## 为什么 Android 需要 CLI？
 
-<card title="传统痛点">
 - Android Studio 启动慢、吃内存
 - CI/CD 流程依赖 IDE 不现实
 - AI Agent 需要轻量交互入口
 - 跨平台脚本化操作困难
-</card>
 
-<card title="CLI 的价值">
+=== slot ===
+
 - 单一入口，统一管理所有 Android 操作
 - 可脚本化、可组合、可自动化
 - 为 AI Agent 提供标准化工具接口
 - 轻量、快速、无 GUI 依赖
-</card>
 
-<callout type="info">
+=== slot ===
+
 **思考**: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？
-</callout>
 
 <!-- reader -->
 在 Android 开发生态中，命令行工具长期处于次要地位。

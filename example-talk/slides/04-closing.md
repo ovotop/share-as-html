@@ -1,16 +1,16 @@
 ---
 slide: 4
 duration: 3min
-layout: default
 emoji: 🎯
+layout:
+  grid:
+    - [{callout: "info"}]
 ---
 
 ## 总结
 
-<callout type="info">
 **核心价值**: Android CLI 为开发者提供了轻量、可脚本化的
 工具链入口，尤其适合 CI/CD 和 AI Agent 场景。
-</callout>
 
 ### 关键特性
 

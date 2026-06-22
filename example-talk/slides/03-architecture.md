@@ -1,25 +1,23 @@
 ---
 slide: 3
 duration: 8min
-layout: grid
-cols: 3
-gap: 20
 emoji: 🏗️
+layout:
+  grid:
+    - [{card: "CLI 入口"}, {card: "Core 引擎"}, {card: "Reporter"}]
 ---
 
 ## 整体架构
 
-<card title="CLI 入口">
 命令行解析、参数校验、帮助系统、子命令分发
-</card>
 
-<card title="Core 引擎">
+=== slot ===
+
 设备发现与管理、任务调度、状态机、插件系统
-</card>
 
-<card title="Reporter">
+=== slot ===
+
 HTML 报告输出、JSON 格式化、实时日志、性能统计
-</card>
 
 ```mermaid
 graph TD

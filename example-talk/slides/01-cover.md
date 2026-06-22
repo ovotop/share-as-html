@@ -1,7 +1,6 @@
 ---
 slide: 1
 duration: 1min
-layout: default
 ---
 
 # Android CLI

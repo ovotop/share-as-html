@@ -15,7 +15,6 @@ import mimetypes
 import os
 import re
 import sys
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Optional
 
@@ -162,9 +161,9 @@ p { margin-bottom: 12px; color: var(--text); font-size: clamp(14px, 1.5vw, 16px)
 
 .card p { font-size: 14px; color: var(--text-dim); }
 
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
-.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-2 { display: grid; gap: 16px; margin: 16px 0; }
+.grid-3 { display: grid; gap: 16px; margin: 16px 0; }
+.grid-4 { display: grid; gap: 16px; margin: 16px 0; }
 
 .flex-row { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
 .flex-col { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
@@ -358,6 +357,11 @@ ul li::before {
 }
 
 .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+img {
     max-width: 100%;
     height: auto;
 }
@@ -897,174 +901,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 # Data Structures
 # ============================================================================
 
-class _BlockSplitter(HTMLParser):
-    """Split HTML into top-level block elements, respecting nested tags."""
-
-    _VOID_TAGS = frozenset({"img", "hr", "br", "input", "source", "link", "meta", "area", "base", "col", "embed", "track", "wbr"})
-
-    def __init__(self):
-        super().__init__()
-        self.blocks: list[str] = []
-        self._buf: list[str] = []
-        self._depth = 0
-        self._root_tag: str | None = None
-
-    def _append_tag(self, s: str):
-        if self._depth == 0:
-            self._buf = [s]
-            self._root_tag = None
-        else:
-            self._buf.append(s)
-
-    def handle_starttag(self, tag, attrs):
-        a = "".join(f' {k}="{v}"' for k, v in attrs)
-        if tag in self._VOID_TAGS:
-            s = f"<{tag}{a} />"
-            if self._depth == 0:
-                self.blocks.append(s)
-            else:
-                self._buf.append(s)
-            return
-        s = f"<{tag}{a}>"
-        if self._depth == 0:
-            self._buf = [s]
-            self._root_tag = tag
-        else:
-            self._buf.append(s)
-        self._depth += 1
-
-    def handle_startendtag(self, tag, attrs):
-        a = "".join(f' {k}="{v}"' for k, v in attrs)
-        s = f"<{tag}{a} />"
-        if self._depth == 0:
-            self.blocks.append(s)
-        else:
-            self._buf.append(s)
-
-    def handle_endtag(self, tag):
-        self._buf.append(f"</{tag}>")
-        self._depth -= 1
-        if self._depth == 0 and tag == self._root_tag:
-            self.blocks.append("".join(self._buf))
-            self._buf = []
-            self._root_tag = None
-
-    def handle_data(self, data):
-        self._buf.append(data)
-
-    def handle_entityref(self, name):
-        self._buf.append(f"&{name};")
-
-    def handle_charref(self, name):
-        self._buf.append(f"&#{name};")
-
-
-def split_top_level_blocks(html_str: str) -> list[str]:
-    """Split HTML string into top-level block elements."""
-    splitter = _BlockSplitter()
-    splitter.feed(html_str)
-    return splitter.blocks
-
-
 class Slide:
     """Represents a single presentation slide."""
 
     __slots__ = (
-        "number", "duration", "layout", "cols", "ratio",
-        "gap", "accent", "emoji", "visual_html", "reader_html",
-        "is_cover", "raw_layout",
+        "number", "duration", "emoji",
+        "visual_html", "reader_html", "is_cover",
     )
 
     def __init__(self, frontmatter: dict[str, Any], visual_html: str, reader_html: str = ""):
         self.number: int = frontmatter.get("slide", 0)
         self.duration: str = frontmatter.get("duration", "")
-        self.raw_layout: str = frontmatter.get("layout", "default")
-        self.layout: str = self.raw_layout.lower() if self.raw_layout else "default"
-        self.cols: int = int(frontmatter.get("cols", 2))
-        self.ratio: str = frontmatter.get("ratio", "1/1")
-        self.gap: int = int(frontmatter.get("gap", 16))
-        self.accent: str = frontmatter.get("accent", "")
         self.emoji: str = frontmatter.get("emoji", "")
         self.visual_html: str = visual_html
         self.reader_html: str = reader_html
         self.is_cover: bool = (self.number == 1)
 
-    def wrap_visual(self) -> str:
-        inner = self.visual_html
-
-        heading = ""
-        m = re.match(r"<h[23][^>]*>.*?</h[23]>\s*", inner, re.DOTALL)
-        if m:
-            heading = m.group(0)
-            inner = inner[m.end():]
-
-        inner = re.sub(
-            r"<p>\s*(<(?:div class=\"(?:card|callout|steps|diagram)\"[^>]*>.*?</div>))\s*</p>",
-            r"\1", inner, flags=re.DOTALL,
-        )
-
-        if self.layout == "grid":
-            blocks = split_top_level_blocks(inner)
-            blocks = [b for b in blocks if b.strip()]
-            if blocks:
-                # Separate leading card blocks from the rest:
-                # cards → grid, everything else → full-width below
-                card_end = 0
-                for b in blocks:
-                    if b.strip().startswith('<div class="card'):
-                        card_end += 1
-                    else:
-                        break
-                
-                if card_end > 0 and card_end < len(blocks):
-                    card_blocks = blocks[:card_end]
-                    other_blocks = blocks[card_end:]
-                    result = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(card_blocks)}</div>'
-                    result += "".join(other_blocks)
-                    return heading + result
-                else:
-                    grid_html = f'<div class="grid-{self.cols}" style="--grid-cols:{self.cols}; --grid-gap:{self.gap}px; gap:{self.gap}px">{"".join(blocks)}</div>'
-                    return heading + grid_html
-            return heading + inner
-
-        elif self.layout == "flex":
-            inner = f'<div class="flex-row" style="gap:{self.gap}px">{inner}</div>'
-        elif self.layout == "stack":
-            inner = f'<div class="stack" style="gap:{self.gap}px">{inner}</div>'
-        elif self.layout == "split":
-            inner = f'<div class="split-layout" style="gap:{self.gap}px">{inner}</div>'
-        elif self.layout == "default":
-            # Auto-grid consecutive cards only if they appear at the start of content
-            # (after heading), preserving content order
-            card_count = inner.count('<div class="card')
-            if card_count >= 2:
-                cards = re.findall(r'<div class="card[^"]*">.*?</div>', inner, re.DOTALL)
-                # Check if cards appear at the start (before any non-card, non-whitespace content)
-                first_card_pos = inner.find('<div class="card')
-                # Only reorder if cards are the first meaningful content
-                prefix = inner[:first_card_pos].strip()
-                if prefix == '' or prefix.startswith('<p>') and prefix.count('<') == 1:
-                    remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
-                    remaining = re.sub(r'<p>\s*</p>', '', remaining)
-                    remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
-                    cols = min(len(cards), 4)
-                    grid_html = f'<div class="grid-{cols}">{"".join(cards)}</div>'
-                    return heading + grid_html + remaining
-                # Cards are not at start — keep original order, wrap consecutive cards in grid
-                inner = re.sub(
-                    r'((?:<div class="card[^"]*">.*?</div>\s*)+)',
-                    wrap_card_group,
-                    inner,
-                    flags=re.DOTALL,
-                )
-
-        return heading + inner
-
     def to_dict(self) -> dict[str, Any]:
         """Return slide data for Jinja2 template rendering."""
         return {
             "number": self.number,
-            "visual_html": self.wrap_visual(),
+            "visual_html": self.visual_html,
             "reader_html": self.reader_html,
             "is_cover": self.is_cover,
         }
@@ -1149,14 +1006,6 @@ def parse_outline(filepath: str) -> list[dict[str, str]]:
     return outline
 
 
-def wrap_card_group(m: re.Match) -> str:
-    """Wrap consecutive card divs in a grid container."""
-    group_cards = re.findall(r'<div class="card[^"]*">.*?</div>', m.group(1), re.DOTALL)
-    cols = min(len(group_cards), 4)
-    wrapped = ''.join(group_cards).strip()
-    return f'<div class="grid-{cols}">{wrapped}</div>'
-
-
 def split_visual_reader(html: str) -> tuple[str, str]:
     """Split HTML into visual and reader layers at <!-- reader --> markers."""
     pattern = r"<!--\s*reader\s*-->(.*?)<!--\s*/reader\s*-->"
@@ -1173,63 +1022,193 @@ def split_visual_reader(html: str) -> tuple[str, str]:
     return visual, reader
 
 
-def process_custom_tags(html: str) -> str:
-    """Convert custom tags to HTML with CSS classes."""
+# ============================================================================
+# YAML Layout System — cell renderers
+# ============================================================================
 
-    # <card title="X">...</card>
-    def replace_card(m: re.Match) -> str:
-        title = m.group(1).replace('<', '&lt;').replace('>', '&gt;')
-        content = m.group(2)
-        return f'<div class="card"><h4>{title}</h4>{content}</div>'
+def render_card(title: str, content: str) -> str:
+    return f'<div class="card"><h4>{title}</h4>{content}</div>'
 
-    html = re.sub(
-        r'<card title="(.*?)">(.*?)</card>',
-        replace_card,
-        html,
-        flags=re.DOTALL,
-    )
+def render_callout(variant: str, content: str) -> str:
+    cls = f"callout callout-{variant}" if variant else "callout"
+    return f'<div class="{cls}">{content}</div>'
 
-    # <callout type="X">...</callout>
-    def replace_callout(m: re.Match) -> str:
-        ctype = m.group(1)
-        content = m.group(2)
-        css_class = f"callout callout-{ctype}" if ctype else "callout"
-        return f'<div class="{css_class}">{content}</div>'
+def render_steps(content: str) -> str:
+    """Parse markdown steps, split by blank lines into .step divs.
+    Receives raw markdown, not converted HTML."""
+    pass  # handled specially in assemble_grid
 
-    html = re.sub(
-        r'<callout type="(.*?)">(.*?)</callout>',
-        replace_callout,
-        html,
-        flags=re.DOTALL,
-    )
-
-    # <callout>...</callout> (without type)
-    html = re.sub(
-        r'<callout>(.*?)</callout>',
-        r'<div class="callout">\1</div>',
-        html,
-        flags=re.DOTALL,
-    )
-
-    # <steps>...</steps> containing <step>...</step>
-    def replace_steps(m: re.Match) -> str:
-        content = m.group(1)
-        content = re.sub(
-            r'<step>(.*?)</step>',
-            r'<div class="step">\1</div>',
-            content,
-            flags=re.DOTALL,
+def render_metrics(content: str) -> str:
+    """Parse 'value : label' lines into metrics HTML."""
+    lines = content.strip().split('\n')
+    metrics_parts = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        if ' : ' in line:
+            value, label = line.split(' : ', 1)
+        elif ': ' in line:
+            value, label = line.split(': ', 1)
+        else:
+            value, label = line, ""
+        metrics_parts.append(
+            f'<div class="metric"><div class="value">{value}</div><div class="label">{label}</div></div>'
         )
-        return f'<div class="steps">{content}</div>'
+    return f'<div class="metrics-row">{"".join(metrics_parts)}</div>'
 
-    html = re.sub(
-        r"<steps>(.*?)</steps>",
-        replace_steps,
-        html,
-        flags=re.DOTALL,
-    )
+def render_split(left: str, right: str) -> str:
+    return f'<div class="split-layout"><div>{left}</div><div>{right}</div></div>'
 
-    return html
+def render_raw(content: str) -> str:
+    return content
+
+CELL_RENDERERS = {
+    "card": lambda p, c: render_card(p, c),
+    "callout": lambda p, c: render_callout(p, c),
+    "steps": lambda p, c: render_steps(c),
+    "metrics": lambda p, c: render_metrics(p),
+    "split": None,  # handled specially in assemble_grid
+    "raw": lambda p, c: render_raw(c),
+}
+
+
+# ============================================================================
+# YAML Layout System — assembly
+# ============================================================================
+
+def split_heading_and_slots(body: str, N_cells: int) -> tuple[str, list[str]]:
+    """Split body into heading and content slots.
+
+    Heading is the first ``##`` line. Everything after it is split into
+    ``N_cells`` slots using ``=== slot ===`` as delimiter (rsplit from right).
+    """
+    heading_text = ""
+    body_rest = body.strip()
+
+    # Extract heading: match the first ## line
+    heading_match = re.match(r'##\s+[^\n]*\n?', body_rest)
+    if heading_match:
+        heading_text = heading_match.group(0).strip()
+        body_rest = body_rest[heading_match.end():].strip()
+
+    if N_cells <= 1:
+        return heading_text, [body_rest] if body_rest else []
+
+    # Split body_rest into N_cells slots by === slot ===
+    parts = body_rest.rsplit('\n=== slot ===\n', maxsplit=N_cells - 1)
+    slots = [p.strip() for p in parts]
+
+    return heading_text, slots
+
+
+def assemble_grid(
+    grid: list[list[dict]],
+    slots: list[str],
+    heading_html: str,
+    md_converter: Any,
+    ratio: str = "",
+) -> str:
+    """Expand YAML grid cells into HTML.
+
+    Each cell gets its slot content converted through markdown,
+    wrapped in the appropriate container, and grouped into grid-N rows.
+    """
+    # Flatten cells in row-major order
+    cells: list[dict] = []
+    for row in grid:
+        cells.extend(row)
+
+    # No grid defined — render all content as raw
+    if not cells:
+        if slots and slots[0]:
+            full_md = slots[0]
+            full_md_clean, m_blocks = extract_mermaid_blocks(full_md)
+            full_html = md_converter.convert(full_md_clean)
+            full_html = restore_mermaid_blocks(full_html, m_blocks)
+            return heading_html + full_html
+        return heading_html
+
+    # Convert each slot through markdown and wrap in cell container
+    result_parts: list[str] = []
+    i = 0
+    while i < len(cells):
+        cell = cells[i]
+        cell_type = list(cell.keys())[0]
+        cell_param = cell[cell_type]
+
+        if cell_type == "split":
+            slot_md = slots[i] if i < len(slots) else ""
+            slot_md2 = slots[i + 1] if i + 1 < len(slots) else ""
+            left_html = md_converter.convert(slot_md)
+            right_html = md_converter.convert(slot_md2)
+            html = render_split(left_html, right_html)
+            i += 2
+        elif cell_type == "metrics":
+            # Metrics content is plain text, not markdown
+            slot_md = slots[i] if i < len(slots) else ""
+            html = render_metrics(slot_md)
+            i += 1
+        elif cell_type == "steps":
+            slot_md = slots[i] if i < len(slots) else ""
+            step_parts = [p.strip() for p in re.split(r'\n\n(?=\*\*)', slot_md) if p.strip()]
+            step_htmls = []
+            for sp in step_parts:
+                sp_clean, sp_mermaid = extract_mermaid_blocks(sp)
+                sp_html = md_converter.convert(sp_clean)
+                sp_html = restore_mermaid_blocks(sp_html, sp_mermaid)
+                step_htmls.append(f'<div class="step">{sp_html}</div>')
+            html = f'<div class="steps">{"".join(step_htmls)}</div>'
+            i += 1
+        else:
+            renderer = CELL_RENDERERS.get(cell_type)
+            if renderer is None:
+                renderer = CELL_RENDERERS["raw"]
+            slot_md = slots[i] if i < len(slots) else ""
+
+            # Extract mermaid blocks per slot
+            slot_md_clean, mermaid_blocks = extract_mermaid_blocks(slot_md)
+            slot_html = md_converter.convert(slot_md_clean)
+            # Strip <p> wrappers around mermaid placeholders
+            slot_html = re.sub(
+                r'<p>\s*(@@MERMAID_\d+@@)\s*</p>',
+                r'\1',
+                slot_html,
+            )
+            slot_html = restore_mermaid_blocks(slot_html, mermaid_blocks)
+
+            html = renderer(cell_param, slot_html)
+            if cell_type == "raw":
+                html = f"<div>{html}</div>"
+            i += 1
+
+        result_parts.append(html)
+
+    # Group by rows
+    result = ""
+    cell_idx = 0
+    for row in grid:
+        row_len = len(row)
+        row_cells = result_parts[cell_idx:cell_idx + row_len]
+        cell_idx += row_len
+
+        if row_len > 1:
+            cols = min(row_len, 4)
+            tmpl_cols = " 1fr" * cols
+            if ratio and cols == 2:
+                parts = ratio.split("/")
+                if len(parts) == 2:
+                    tmpl_cols = f" {parts[0].strip()}fr {parts[1].strip()}fr"
+            result += (
+                f'<div class="grid-{cols}"'
+                f' style="--grid-cols:{cols}; --grid-gap:16px; gap:16px; grid-template-columns:{tmpl_cols}">'
+                + "".join(row_cells)
+                + "</div>"
+            )
+        else:
+            result += row_cells[0]
+
+    return heading_html + result
 
 
 def extract_mermaid_blocks(md_text: str) -> tuple[str, list[str]]:
@@ -1277,40 +1256,48 @@ def parse_slide(filepath: str) -> Optional[Slide]:
 
     fm, body = extract_frontmatter(text)
 
-    # Validate layout
-    valid_layouts = {"grid", "flex", "stack", "split", "default"}
-    layout = fm.get("layout", "default")
-    if layout not in valid_layouts:
-        print(f"Warning: {filepath}: unknown layout '{layout}', falling back to 'default'", file=sys.stderr)
-        fm["layout"] = "default"
+    # Detect old layout syntax
+    layout = fm.get("layout", None)
+    if isinstance(layout, str):
+        print(
+            f"Error: {filepath}: old layout syntax 'layout: {layout}' detected.\n"
+            f"Use YAML grid syntax instead:\n"
+            f"  layout:\n"
+            f"    grid:\n"
+            f"      - [{{card: 'Title A'}}, {{card: 'Title B'}}]\n"
+            f"      - [{{callout: 'warning'}}]\n"
+            f"See the migration guide or run the migration script.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-    # Extract mermaid code blocks before markdown conversion
-    body, mermaid_blocks = extract_mermaid_blocks(body)
+    # Parse YAML grid
+    if isinstance(layout, dict) and "grid" in layout:
+        grid = layout["grid"]
+    else:
+        grid = []
 
-    # Pre-process card titles: escape < and > inside title="..." to prevent HTML parsing issues
-    body = re.sub(
-        r'(<card\s+title=")(.*?)(">)',
-        lambda m: m.group(1) + m.group(2).replace('<', '&lt;').replace('>', '&gt;') + m.group(3),
-        body,
-    )
+    N_cells = sum(len(row) for row in grid)
 
-    # Convert Markdown body to HTML
+    # Split heading and content slots
+    heading_text, slots = split_heading_and_slots(body, N_cells)
+
+    # Convert heading through markdown
     md = markdown.Markdown(
         extensions=["extra", "md_in_html", "codehilite", "fenced_code", "tables"]
     )
-    body_html = md.convert(body)
+    heading_html = ""
+    if heading_text:
+        heading_md, h_mermaid = extract_mermaid_blocks(heading_text)
+        heading_html = md.convert(heading_md)
+        heading_html = restore_mermaid_blocks(heading_html, h_mermaid)
 
-    # Restore mermaid placeholders (must be before process_custom_tags to keep tag content intact)
-    body_html = restore_mermaid_blocks(body_html, mermaid_blocks)
-
-    # Process custom tags
-    body_html = process_custom_tags(body_html)
-
-    # Restore mermaid placeholders
-    body_html = restore_mermaid_blocks(body_html, mermaid_blocks)
+    # Assemble grid with per-slot markdown conversion
+    grid_ratio = layout.get("ratio", "") if isinstance(layout, dict) else ""
+    visual_html = assemble_grid(grid, slots, heading_html, md, grid_ratio)
 
     # Split visual/reader layers
-    visual_html, reader_html = split_visual_reader(body_html)
+    visual_html, reader_html = split_visual_reader(visual_html)
 
     return Slide(
         frontmatter=fm,

@@ -11,3 +11,6 @@ tmp/
 
 # python
 **/*.pyc
+
+# playwright
+.playwright-mcp/

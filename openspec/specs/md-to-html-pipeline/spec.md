@@ -31,6 +31,11 @@ If `-o` is not specified, the script SHALL output to `<project_dir>/output/shari
 - **WHEN** user runs `python md2html.py /nonexistent/`
 - **THEN** the script SHALL exit with a non-zero code and print an error message
 
+#### Scenario: Old layout syntax rejected
+
+- **WHEN** a slide's frontmatter contains `layout: grid` (string value)
+- **THEN** the script SHALL exit with a non-zero code and print an error indicating the required YAML syntax
+
 ### Requirement: Dependency specification
 
 The script SHALL declare dependencies in a `requirements.txt` file:
@@ -133,17 +138,4 @@ If `<project_dir>/override.css` exists, the script SHALL embed its content in a 
 - **WHEN** the project directory does not contain `override.css`
 - **THEN** the script SHALL proceed normally without error
 
-### Requirement: Semantic class naming
 
-The script SHALL assign stable, semantic class names to all rendered elements:
-
-- `.slide-N` for the Nth slide (1-based)
-- `.card-M` for the Mth card within a slide (0-based)
-- `.reader-narrative` for the reader narrative section
-
-These class names SHALL NOT change when the presentation content is modified (unless the slide or card count changes).
-
-#### Scenario: Class names stable across runs
-
-- **WHEN** slide 3's card content is modified and the script is re-run
-- **THEN** slide 3 SHALL still have class `.slide-3` and its first card SHALL still have class `.card-0`

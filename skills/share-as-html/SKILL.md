@@ -48,55 +48,62 @@ Create a Markdown project and convert to HTML with `scripts/md2html.py`.
 
 **Step 2: Write Markdown slides**
 
-Each slide file has YAML frontmatter for layout control:
+Each slide file has YAML frontmatter with a `layout.grid` describing the visual structure. The Markdown body is pure content — zero HTML tags.
 
 ```yaml
 ---
 slide: 2
 duration: 5min
-layout: grid      # grid | flex | stack | split | default
-cols: 2           # columns for grid
-gap: 24           # spacing in px
-emoji: 🤔          # emoji shown with heading
+emoji: 🤔
+layout:
+  grid:
+    - [{card: "卡片 A"}, {card: "卡片 B"}]    # row 1: two cards
+    - [{callout: "info"}]                      # row 2: full-width callout
 ---
 ```
 
-Supported custom tags in Markdown body:
-- `<card title="X">...</card>` → card component
-- `<callout type="info|warn|tip">...</callout>` → callout box
-- `<steps><step>...</step></steps>` → numbered steps
+**Cell types:**
 
-**Wrapping content in layout blocks:**
+| Type | YAML | Slot body |
+|------|------|-----------|
+| `card` | `{card: "标题"}` | Markdown content inside the card |
+| `callout` | `{callout: "variant"}` | Markdown content (variant: info, warning, tip, danger) |
+| `steps` | `{steps: null}` | Numbered list (rendered with `.step` CSS) |
+| `metrics` | `{metrics: null}` | `值 : 标签` lines, one per metric |
+| `split` | `{split: null}` | Two consecutive slots → left/right columns |
+| `raw` | `{raw: null}` | Plain markdown, no container wrapper |
 
-When you need to group markdown content into a single grid cell (e.g., text all in left column, image in right), use `<div markdown="1">`:
+**Slot delimiter** — `=== slot ===` separates cell content in body:
 
 ```markdown
 ---
-slide: 1
-layout: grid
-cols: 2
+slide: 3
+layout:
+  grid:
+    - [{card: "左卡片"}, {card: "右卡片"}]
 ---
 
-<div markdown="1">
+## 页面标题
 
-# Title
-## Subtitle
+卡片 A 的内容。**粗体** 和 `行内代码` 正常。
 
-Content here. **Bold** works. [Links](url) work.
+=== slot ===
 
-</div>
+卡片 B 的内容。代码块也正常工作：
 
-![QR code](assets/qr.png)
+```
+echo "hello"
 ```
 
-Without `markdown="1"`, content inside HTML blocks would be treated as raw HTML and markdown syntax would not be processed.
+=== slot ===
 
-Separate visual and reader layers with:
-```markdown
-<!-- reader -->
-Content for DOC mode (reader-facing article prose).
-<!-- /reader -->
+**提示** 这是 callout 里的内容。
 ```
+
+- Each cell in the grid maps to one content slot, in row-major order
+- Heading (first `##`) belongs before the first `=== slot ===`
+- Mermaid code blocks inside slots work normally
+- `<!-- reader -->...<!-- /reader -->` markers inside slots for DOC mode content
 
 **Step 3: Convert to HTML**
 
