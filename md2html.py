@@ -934,15 +934,29 @@ class Slide:
         elif self.layout == "split":
             inner = f'<div class="split-layout" style="gap:{self.gap}px">{inner}</div>'
         elif self.layout == "default":
+            # Auto-grid consecutive cards only if they appear at the start of content
+            # (after heading), preserving content order
             card_count = inner.count('<div class="card')
             if card_count >= 2:
                 cards = re.findall(r'<div class="card[^"]*">.*?</div>', inner, re.DOTALL)
-                remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
-                remaining = re.sub(r'<p>\s*</p>', '', remaining)
-                remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
-                cols = min(len(cards), 4)
-                grid_html = f'<div class="grid-{cols}">{"".join(cards)}</div>'
-                return heading + grid_html + remaining
+                # Check if cards appear at the start (before any non-card, non-whitespace content)
+                first_card_pos = inner.find('<div class="card')
+                # Only reorder if cards are the first meaningful content
+                prefix = inner[:first_card_pos].strip()
+                if prefix == '' or prefix.startswith('<p>') and prefix.count('<') == 1:
+                    remaining = re.sub(r'<div class="card[^"]*">.*?</div>', '', inner, flags=re.DOTALL)
+                    remaining = re.sub(r'<p>\s*</p>', '', remaining)
+                    remaining = re.sub(r'\n{2,}', '\n', remaining).strip()
+                    cols = min(len(cards), 4)
+                    grid_html = f'<div class="grid-{cols}">{"".join(cards)}</div>'
+                    return heading + grid_html + remaining
+                # Cards are not at start — keep original order, wrap consecutive cards in grid
+                inner = re.sub(
+                    r'((?:<div class="card[^"]*">.*?</div>\s*)+)',
+                    wrap_card_group,
+                    inner,
+                    flags=re.DOTALL,
+                )
 
         return heading + inner
 
@@ -1035,6 +1049,14 @@ def parse_outline(filepath: str) -> list[dict[str, str]]:
     return outline
 
 
+def wrap_card_group(m: re.Match) -> str:
+    """Wrap consecutive card divs in a grid container."""
+    group_cards = re.findall(r'<div class="card[^"]*">.*?</div>', m.group(1), re.DOTALL)
+    cols = min(len(group_cards), 4)
+    wrapped = ''.join(group_cards).strip()
+    return f'<div class="grid-{cols}">{wrapped}</div>'
+
+
 def split_visual_reader(html: str) -> tuple[str, str]:
     """Split HTML into visual and reader layers at <!-- reader --> markers."""
     pattern = r"<!--\s*reader\s*-->(.*?)<!--\s*/reader\s*-->"
@@ -1056,7 +1078,7 @@ def process_custom_tags(html: str) -> str:
 
     # <card title="X">...</card>
     def replace_card(m: re.Match) -> str:
-        title = m.group(1)
+        title = m.group(1).replace('<', '&lt;').replace('>', '&gt;')
         content = m.group(2)
         return f'<div class="card"><h4>{title}</h4>{content}</div>'
 
@@ -1110,20 +1132,41 @@ def process_custom_tags(html: str) -> str:
     return html
 
 
-def fix_mermaid_blocks(raw_html: str) -> str:
+def extract_mermaid_blocks(md_text: str) -> tuple[str, list[str]]:
+    """Extract ```mermaid code blocks before markdown conversion, replacing with placeholders.
 
-    def replace_mermaid(m: re.Match) -> str:
-        raw = m.group(1)
-        raw = re.sub(r'<[^>]+>', '', raw)
-        raw = html.unescape(raw)
-        raw = raw.strip()
-        return f'<div class="diagram-focusable" data-focusable><div class="mermaid">\n{raw}\n</div></div>'
+    Returns (modified_text, list_of_mermaid_contents).
+    """
+    blocks = []
+
+    def replace_mermaid_block(m: re.Match) -> str:
+        content = m.group(1).strip()
+        idx = len(blocks)
+        blocks.append(content)
+        return f'\n\n@@MERMAID_{idx}@@\n\n'
+
+    modified = re.sub(
+        r'```mermaid\s*\n(.*?)```',
+        replace_mermaid_block,
+        md_text,
+        flags=re.DOTALL,
+    )
+    return modified, blocks
+
+
+def restore_mermaid_blocks(raw_html: str, mermaid_blocks: list[str]) -> str:
+    """Restore mermaid placeholders back to proper mermaid divs."""
+
+    def replace_placeholder(m: re.Match) -> str:
+        idx = int(m.group(1))
+        content = mermaid_blocks[idx] if idx < len(mermaid_blocks) else m.group(0)
+        content = html.escape(content)
+        return f'<div class="diagram-focusable" data-focusable><div class="mermaid">\n{content}\n</div></div>'
 
     return re.sub(
-        r'<div class="codehilite"><pre><span></span><code>(.*?)</code></pre></div>',
-        replace_mermaid,
+        r'@@MERMAID_(\d+)@@',
+        replace_placeholder,
         raw_html,
-        flags=re.DOTALL,
     )
 
 
@@ -1141,17 +1184,30 @@ def parse_slide(filepath: str) -> Optional[Slide]:
         print(f"Warning: {filepath}: unknown layout '{layout}', falling back to 'default'", file=sys.stderr)
         fm["layout"] = "default"
 
+    # Extract mermaid code blocks before markdown conversion
+    body, mermaid_blocks = extract_mermaid_blocks(body)
+
+    # Pre-process card titles: escape < and > inside title="..." to prevent HTML parsing issues
+    body = re.sub(
+        r'(<card\s+title=")(.*?)(">)',
+        lambda m: m.group(1) + m.group(2).replace('<', '&lt;').replace('>', '&gt;') + m.group(3),
+        body,
+    )
+
     # Convert Markdown body to HTML
     md = markdown.Markdown(
         extensions=["extra", "codehilite", "fenced_code", "tables"]
     )
     body_html = md.convert(body)
 
+    # Restore mermaid placeholders (must be before process_custom_tags to keep tag content intact)
+    body_html = restore_mermaid_blocks(body_html, mermaid_blocks)
+
     # Process custom tags
     body_html = process_custom_tags(body_html)
 
-    # Fix mermaid code blocks
-    body_html = fix_mermaid_blocks(body_html)
+    # Restore mermaid placeholders
+    body_html = restore_mermaid_blocks(body_html, mermaid_blocks)
 
     # Split visual/reader layers
     visual_html, reader_html = split_visual_reader(body_html)
