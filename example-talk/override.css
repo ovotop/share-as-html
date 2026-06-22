@@ -1,0 +1,17 @@
+/* override.css — 人类调整布局和风格 */
+/* 修改后重新运行 python md2html.py example-talk/ 即可生效 */
+
+/* 示例：让第三页的卡片更大 */
+.slide-3 .card {
+    padding: 28px;
+}
+
+/* 示例：修改第一张卡片的强调色 */
+.slide-2 .card-0 {
+    border-left: 3px solid var(--red);
+}
+
+/* 示例：调整封面背景 */
+.slide-1 {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}

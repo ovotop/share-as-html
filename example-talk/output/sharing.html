@@ -1,112 +1,10 @@
----
-name: share-as-html
-description: Create rich HTML sharing/presentation documents with doc/ppt/zoom modes. Use when creating technical sharing slides, demo presentations, or knowledge sharing HTML docs. Supports dark theme, mermaid diagrams, keyboard navigation.
----
-
-# Sharing Document Skill
-
-Generate self-contained HTML presentation documents with three viewing modes: **Doc** (free scroll), **PPT** (snap slides), and **Zoom** (focus on diagrams/images).
-
-## Trigger Rules
-
-Activate when user mentions:
-- "分享"、"演示"、"slides"、"技术分享"、"分享文档"、"分享ppt"
-- "用HTML做分享"、"创建演示文档"
-- Any request to create an HTML presentation or sharing document
-
-If format is unclear, ask: "用 HTML 分享文档还是其他格式？"
-
-## Content Constraints
-
-**AVOID ASCII diagrams** — Chinese text alignment is unreliable in monospace.
-- Use **mermaid** diagrams instead (flowchart, sequence, class, state, gantt, mindmap)
-- Use **images** for screenshots or complex diagrams
-- Mermaid is preferred for most diagram types
-
-## Workflow
-
-Two paths available. **Prefer Markdown for anything beyond a one-off quick share.**
-
-### Path A: Markdown (Recommended)
-
-Create a Markdown project and convert to HTML with `md2html.py`.
-
-**Step 1: Create project structure**
-
-```
-<project>/
-├── meta.md              ← YAML frontmatter: title, subtitle, speaker, date, duration
-├── outline.md           ← Markdown table: sections with timing
-├── speaker-script.md    ← Presenter script (not rendered to HTML)
-├── override.css         ← Optional human CSS overrides
-├── slides/
-│   ├── 01-cover.md
-│   ├── 02-<name>.md
-│   └── ...
-└── assets/
-```
-
-**Step 2: Write Markdown slides**
-
-Each slide file has YAML frontmatter for layout control:
-
-```yaml
----
-slide: 2
-duration: 5min
-layout: grid      # grid | flex | stack | split | default
-cols: 2           # columns for grid
-gap: 24           # spacing in px
-emoji: 🤔          # emoji shown with heading
----
-```
-
-Supported custom tags in Markdown body:
-- `<card title="X">...</card>` → card component
-- `<callout type="info|warn|tip">...</callout>` → callout box
-- `<steps><step>...</step></steps>` → numbered steps
-
-Separate visual and reader layers with:
-```markdown
-<!-- reader -->
-Content for DOC mode (reader-facing article prose).
-<!-- /reader -->
-```
-
-**Step 3: Convert to HTML**
-
-```bash
-python md2html.py <project_dir> [-o <output.html>]
-```
-
-Dependencies: `pip install markdown PyYAML jinja2`
-
-**Step 4: Open in browser**
-
-```bash
-xdg-open <project_dir>/output/sharing.html    # Linux
-open <project_dir>/output/sharing.html        # macOS
-```
-
-### Path B: Direct HTML (Quick/Draft)
-
-For simple one-off shares, generate HTML directly.
-
-**Step 1**: Ask user where to save.
-
-**Step 2**: Generate self-contained HTML with inline CSS/JS. Use the CSS Template and JS Template below.
-
-**Step 3**: Write to file and open in browser.
-
----
-
-## CSS Template
-
-Copy this ENTIRE CSS block into the `<style>` tag of generated HTML:
-
-```css
-/* ===== Reset & Variables ===== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android CLI</title>
+    <style>* { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
     --bg: #0f172a;
@@ -123,10 +21,7 @@ Copy this ENTIRE CSS block into the `<style>` tag of generated HTML:
     --yellow: #fbbf24;
 }
 
-/* ===== Base Styles ===== */
-html {
-    scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
     font-family: -apple-system, 'SF Pro Display', 'PingFang SC', 'Noto Sans SC', sans-serif;
@@ -136,11 +31,8 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-code, pre {
-    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-}
+code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 
-/* ===== Slide Container (Doc Mode Default) ===== */
 .slide {
     min-height: auto;
     padding: 32px 40px;
@@ -160,7 +52,6 @@ code, pre {
     font-family: 'SF Mono', monospace;
 }
 
-/* ===== Cover Slide ===== */
 .cover {
     text-align: center;
     background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
@@ -187,13 +78,8 @@ code, pre {
     color: var(--text-dim);
 }
 
-/* ===== Content Container ===== */
-.content {
-    max-width: 900px;
-    width: 100%;
-}
+.content { max-width: 900px; width: 100%; }
 
-/* ===== Typography ===== */
 h2 {
     font-size: 36px;
     font-weight: 600;
@@ -203,9 +89,7 @@ h2 {
     gap: 12px;
 }
 
-h2 .emoji {
-    font-size: 32px;
-}
+h2 .emoji { font-size: 32px; }
 
 h3 {
     font-size: 22px;
@@ -215,12 +99,8 @@ h3 {
     margin-top: 24px;
 }
 
-p {
-    margin-bottom: 12px;
-    color: var(--text);
-}
+p { margin-bottom: 12px; color: var(--text); }
 
-/* ===== Points / List Items ===== */
 .point {
     padding: 12px 16px;
     margin-bottom: 8px;
@@ -239,11 +119,6 @@ p {
     background: rgba(251, 191, 36, 0.08);
 }
 
-.point::before {
-    content: '';
-}
-
-/* ===== Cards ===== */
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -259,26 +134,27 @@ p {
     color: var(--accent);
 }
 
-.card p {
-    font-size: 14px;
-    color: var(--text-dim);
-}
+.card p { font-size: 14px; color: var(--text-dim); }
 
-/* ===== Grid Layout ===== */
-.grid-2 {
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+
+.flex-row { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
+.flex-col { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
+.stack { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
+
+.split-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 24px;
     margin: 16px 0;
 }
 
 @media (max-width: 768px) {
-    .grid-2 {
-        grid-template-columns: 1fr;
-    }
+    .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
 }
 
-/* ===== Code Blocks ===== */
 pre {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -288,11 +164,7 @@ pre {
     overflow-x: auto;
 }
 
-pre code {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text);
-}
+pre code { font-size: 14px; line-height: 1.5; color: var(--text); }
 
 code {
     background: var(--surface);
@@ -301,13 +173,11 @@ code {
     font-size: 13px;
 }
 
-/* Syntax Highlighting Classes */
 .cmd { color: var(--green); }
 .comment { color: var(--text-dim); }
 .string { color: var(--yellow); }
 .keyword { color: var(--accent2); }
 
-/* ===== Tags ===== */
 .tag {
     display: inline-block;
     padding: 4px 10px;
@@ -323,13 +193,7 @@ code {
 .tag-orange { background: rgba(251, 146, 60, 0.15); color: var(--orange); }
 .tag-purple { background: rgba(129, 140, 248, 0.15); color: var(--accent2); }
 
-/* ===== Metrics ===== */
-.metrics-row {
-    display: flex;
-    gap: 24px;
-    margin: 16px 0;
-    flex-wrap: wrap;
-}
+.metrics-row { display: flex; gap: 24px; margin: 16px 0; flex-wrap: wrap; }
 
 .metric {
     display: flex;
@@ -342,23 +206,10 @@ code {
     min-width: 120px;
 }
 
-.metric .value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--accent);
-}
+.metric .value { font-size: 32px; font-weight: 700; color: var(--accent); }
+.metric .label { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
 
-.metric .label {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-top: 4px;
-}
-
-/* ===== Flow / Numbered List ===== */
-.flow {
-    counter-reset: flow-counter;
-    margin: 16px 0;
-}
+.flow { counter-reset: flow-counter; margin: 16px 0; }
 
 .flow-item {
     counter-increment: flow-counter;
@@ -386,7 +237,6 @@ code {
     font-weight: 700;
 }
 
-/* ===== Tables ===== */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -406,15 +256,9 @@ th {
     font-size: 14px;
 }
 
-td {
-    font-size: 14px;
-}
+td { font-size: 14px; }
+tr:hover td { background: rgba(56, 189, 248, 0.04); }
 
-tr:hover td {
-    background: rgba(56, 189, 248, 0.04);
-}
-
-/* ===== Custom List ===== */
 ul {
     list-style: none;
     margin: 12px 0;
@@ -426,14 +270,63 @@ ul li {
 }
 
 ul li::before {
-    content: '▸';
+    content: '\25B8';
     position: absolute;
     left: 0;
     color: var(--accent);
     font-weight: bold;
 }
 
-/* ===== Mermaid ===== */
+/* Callout */
+.callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    border-left: 4px solid var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.callout.callout-info { border-left-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+.callout.callout-warn { border-left-color: var(--orange); background: rgba(251, 146, 60, 0.08); }
+.callout.callout-tip { border-left-color: var(--green); background: rgba(74, 222, 128, 0.08); }
+.callout.callout-danger { border-left-color: var(--red); background: rgba(248, 113, 113, 0.08); }
+
+.callout strong { color: var(--accent); }
+.callout.callout-warn strong { color: var(--orange); }
+.callout.callout-tip strong { color: var(--green); }
+
+/* Steps */
+.steps { margin: 16px 0; }
+
+.step {
+    padding: 12px 16px 12px 48px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border-radius: 8px;
+    position: relative;
+}
+
+.step::before {
+    content: counter(step-counter);
+    counter-increment: step-counter;
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.steps { counter-reset: step-counter; }
+
+/* Mermaid */
 .mermaid {
     display: flex;
     justify-content: center;
@@ -445,7 +338,7 @@ ul li::before {
     height: auto;
 }
 
-/* ===== Diagram Focus State ===== */
+/* Diagram Focus State */
 .diagram-focusable {
     cursor: pointer;
     border: 2px solid transparent;
@@ -454,25 +347,30 @@ ul li::before {
     padding: 4px;
 }
 
-.diagram-focusable.focused {
-    border-color: var(--accent);
-}
+.diagram-focusable.focused { border-color: var(--accent); }
 
-/* ===== No-Focus State ===== */
 .diagram-focusable.no-focus {
     opacity: 0.6;
     cursor: default;
     border-color: transparent !important;
 }
 
-.diagram-focusable.no-focus:hover {
-    border-color: transparent !important;
+.diagram-focusable.no-focus:hover { border-color: transparent !important; }
+
+/* Reader narrative (DOC mode only) */
+.reader-narrative {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.8;
 }
 
-/* ===== PPT Mode (Snap Scrolling) ===== */
-body.mode-ppt {
-    overflow: hidden;
-}
+.reader-narrative p { color: var(--text-dim); }
+
+/* PPT Mode */
+body.mode-ppt { overflow: hidden; }
 
 body.mode-ppt .slide {
     min-height: 100vh;
@@ -482,6 +380,8 @@ body.mode-ppt .slide {
     scroll-snap-stop: always;
 }
 
+body.mode-ppt .reader-narrative { display: none; }
+
 #scroll-container.mode-ppt {
     scroll-snap-type: y proximity;
     overflow-y: scroll;
@@ -489,7 +389,7 @@ body.mode-ppt .slide {
     height: 100vh;
 }
 
-/* ===== Bounce Animations ===== */
+/* Bounce Animations */
 @keyframes slide-bounce-down {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(8px); }
@@ -515,10 +415,8 @@ body.mode-ppt .slide {
 #scroll-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
 #scroll-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
 
-/* ===== Zoom Mode ===== */
-body.mode-zoom .slide {
-    display: none;
-}
+/* Zoom Mode */
+body.mode-zoom .slide { display: none; }
 
 body.mode-zoom .zoom-container {
     position: fixed;
@@ -534,51 +432,171 @@ body.mode-zoom .zoom-container {
     overflow: auto;
 }
 
-body.mode-zoom .zoom-content {
-    /* No size restrictions — let container scroll */
-}
+body.mode-zoom .reader-narrative { display: none; }
 
-/* ===== Responsive ===== */
+/* Responsive */
 @media (max-width: 768px) {
-    .slide {
-        padding: 32px 24px;
-    }
-    h2 {
-        font-size: 28px;
-    }
-    .cover h1 {
-        font-size: 32px;
-    }
+    .slide { padding: 32px 24px; }
+    body.mode-ppt .slide { padding: 40px 24px; }
+    h2 { font-size: 28px; }
+    .cover h1 { font-size: 32px; }
+    .flex-row { flex-direction: column; }
 }
-```
 
----
+@media print {
+    .slide { page-break-after: always; min-height: auto; padding: 40px; }
+}</style>    <style>/* override.css — 人类调整布局和风格 */
+/* 修改后重新运行 python md2html.py example-talk/ 即可生效 */
 
-## JavaScript Template
+/* 示例：让第三页的卡片更大 */
+.slide-3 .card {
+    padding: 28px;
+}
 
-Copy this ENTIRE JS block into the `<script>` tag of generated HTML:
+/* 示例：修改第一张卡片的强调色 */
+.slide-2 .card-0 {
+    border-left: 3px solid var(--red);
+}
 
-```javascript
-// ===== State Machine =====
-let currentState = 'DOC'; // DOC | PPT_FULL | PPT_ZOOM
+/* 示例：调整封面背景 */
+.slide-1 {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}</style></head>
+<body>
+    <div id="scroll-container">
+        <div class="slide cover" data-slide="1">
+            <span class="slide-number">01</span>
+            <div class="content">
+                <h1>Android CLI</h1>
+                <p>从命令行重新认识 Android 开发工具链</p>
+                <p>张三 · 2026-06</p>
+            </div>
+        </div>
+        <div class="slide " data-slide="2">
+            <span class="slide-number">02</span>
+            <div class="content">
+                <div class="grid-2" style="--grid-cols:2; --grid-gap:24px; gap:24px"><h2>为什么 Android 需要 CLI？</h2>
+                <p><div class="card"><h4>传统痛点</h4>
+                - Android Studio 启动慢、吃内存
+                - CI/CD 流程依赖 IDE 不现实
+                - AI Agent 需要轻量交互入口
+                - 跨平台脚本化操作困难
+                </div></p>
+                <p><div class="card"><h4>CLI 的价值</h4>
+                - 单一入口，统一管理所有 Android 操作
+                - 可脚本化、可组合、可自动化
+                - 为 AI Agent 提供标准化工具接口
+                - 轻量、快速、无 GUI 依赖
+                </div></p>
+                <p><div class="callout callout-info">
+                <strong>思考</strong>: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？
+                </div></p></div>
+            </div>
+            <div class="reader-narrative">
+                <p>在 Android 开发生态中，命令行工具长期处于次要地位。
+                大多数开发者习惯通过 Android Studio 完成编译、调试、
+                部署的全流程。但在以下场景中，GUI IDE 不再是合适的
+                选择：</p>
+                <ul>
+                <li><strong>CI/CD 流水线</strong>: Jenkins、GitHub Actions 等环境没有 GUI</li>
+                <li><strong>自动化测试</strong>: 需要脚本驱动设备操作</li>
+                <li><strong>AI Agent 集成</strong>: AI 无法打开 Android Studio</li>
+                </ul>
+                <p>Android Studio 启动缓慢（通常 30 秒以上）、内存占用高
+                （超过 2GB），在无头环境中完全无法运行。而 CLI 工具
+                天然支持脚本化——你可以用几行 shell 完成构建、测试、
+                部署的全流程。</p>
+                <p>通过对比可以看到，CLI 方案在启动速度、内存占用、
+                脚本化能力、CI/CD 适配等每一项指标上都碾压 IDE 方案。
+                对于自动化场景，差异尤其明显。</p>
+            </div>
+        </div>
+        <div class="slide " data-slide="3">
+            <span class="slide-number">03</span>
+            <div class="content">
+                <div class="grid-3" style="--grid-cols:3; --grid-gap:20px; gap:20px"><h2>整体架构</h2>
+                <p><div class="card"><h4>CLI 入口</h4>
+                命令行解析、参数校验、帮助系统、子命令分发
+                </div></p>
+                <p><div class="card"><h4>Core 引擎</h4>
+                设备发现与管理、任务调度、状态机、插件系统
+                </div></p>
+                <p><div class="card"><h4>Reporter</h4>
+                HTML 报告输出、JSON 格式化、实时日志、性能统计
+                </div></p>
+                <div class="codehilite"><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">TD</span>
+                <span class="w">    </span><span class="n">A</span><span class="p">[</span><span class="n">CLI</span><span class="w"> </span><span class="n">Layer</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">B</span><span class="p">[</span><span class="n">Core</span><span class="w"> </span><span class="n">Engine</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">C</span><span class="p">[</span><span class="n">ADB</span><span class="w"> </span><span class="n">Bridge</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">D</span><span class="p">[</span><span class="n">Log</span><span class="w"> </span><span class="n">Parser</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">E</span><span class="p">[</span><span class="n">Task</span><span class="w"> </span><span class="n">Scheduler</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">C</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">F</span><span class="p">[</span><span class="n">Android</span><span class="w"> </span><span class="n">Device</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">D</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">G</span><span class="p">[</span><span class="n">Reporter</span><span class="p">]</span>
+                <span class="w">    </span><span class="n">E</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">G</span>
+                <span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">H</span><span class="p">[</span><span class="n">HTML</span><span class="w"> </span><span class="n">Output</span><span class="p">]</span>
+                </code></pre></div></div>
+            </div>
+            <div class="reader-narrative">
+                <p>Android CLI 采用经典的三层架构：</p>
+                <p><strong>CLI 入口层</strong>负责与用户交互，解析命令行参数，提供
+                完整的帮助系统。它支持子命令模式——每个功能模块
+                （如设备管理、日志收集）作为一个独立的子命令，
+                通过统一的入口调用。</p>
+                <p><strong>Core 引擎层</strong>是整个系统的核心。它管理设备发现
+                （通过 ADB Bridge 与设备通信）、任务调度
+                （并发执行多个操作）、以及状态管理。插件系统
+                允许第三方扩展功能，而无需修改核心代码。</p>
+                <p><strong>Reporter 输出层</strong>将收集到的数据转化为可读的报告。
+                支持 HTML 格式（适合分享和存档）、JSON 格式
+                （适合程序化处理）、以及实时终端日志（适合调试）。</p>
+            </div>
+        </div>
+        <div class="slide " data-slide="4">
+            <span class="slide-number">04</span>
+            <div class="content">
+                <h2>总结</h2>
+                <p><div class="callout callout-info">
+                <strong>核心价值</strong>: Android CLI 为开发者提供了轻量、可脚本化的
+                工具链入口，尤其适合 CI/CD 和 AI Agent 场景。
+                </div></p>
+                <h3>关键特性</h3>
+                <ul>
+                <li>✅ 单一入口，统一管理</li>
+                <li>✅ 启动快速（&lt;1s），内存占用低（&lt;100MB）</li>
+                <li>✅ 原生支持脚本化和自动化</li>
+                <li>✅ 为 AI Agent 提供标准化接口</li>
+                </ul>
+            </div>
+            <div class="reader-narrative">
+                <p>本文介绍了 Android CLI 的设计动机、核心架构和关键特性。
+                从传统 IDE 方式的痛点出发，我们看到了轻量命令行工具
+                在现代开发流程中的必要性——尤其是在 CI/CD 流水线和
+                AI Agent 集成的场景下。</p>
+                <p>三层架构（CLI入口 → Core引擎 → Reporter输出）提供了
+                清晰的职责分离和良好的可扩展性。未来，Android CLI 将
+                继续演进，支持更多设备操作、更丰富的报告格式，
+                以及更紧密的 AI Agent 集成。</p>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+    <script>let currentState = 'DOC';
 let currentSlideIndex = 0;
 let focusedDiagramIndex = -1;
 let isAtScrollBoundary = false;
 let zoomTarget = null;
 
-// ===== Keyboard Handler =====
 document.addEventListener('keydown', (e) => {
     const slides = document.querySelectorAll('.slide');
-    
+
     switch(currentState) {
         case 'DOC':
             if (e.key === 'Enter') {
                 e.preventDefault();
                 enterPPTMode();
             }
-            // Arrow keys use default scroll behavior in doc mode
             break;
-            
+
         case 'PPT_FULL':
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -643,7 +661,7 @@ document.addEventListener('keydown', (e) => {
                 }
             }
             break;
-            
+
         case 'PPT_ZOOM':
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -671,20 +689,19 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ===== Mode Switch Functions =====
 function enterPPTMode() {
     currentState = 'PPT_FULL';
     isAtScrollBoundary = false;
     document.body.className = 'mode-ppt';
     const container = document.getElementById('scroll-container');
     if (container) container.classList.add('mode-ppt');
-    
+
     const slides = document.querySelectorAll('.slide');
     const scrollTop = container ? container.scrollTop : window.scrollY;
     const viewportCenter = scrollTop + window.innerHeight / 2;
     let nearestIndex = 0;
     let minDistance = Infinity;
-    
+
     slides.forEach((slide, i) => {
         const slideTop = slide.offsetTop - (container ? container.offsetTop : 0);
         const slideCenter = slideTop + slide.offsetHeight / 2;
@@ -694,7 +711,7 @@ function enterPPTMode() {
             nearestIndex = i;
         }
     });
-    
+
     currentSlideIndex = nearestIndex;
     slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
     updateFocus();
@@ -706,7 +723,7 @@ function enterDocMode() {
     const container = document.getElementById('scroll-container');
     if (container) container.classList.remove('mode-ppt');
     clearFocus();
-    
+
     const slide = document.querySelectorAll('.slide')[currentSlideIndex];
     if (slide) {
         const target = slide.offsetTop + slide.offsetHeight / 2 - window.innerHeight / 2;
@@ -718,7 +735,7 @@ function enterZoomMode(element) {
     currentState = 'PPT_ZOOM';
     zoomTarget = element;
     document.body.className = 'mode-zoom';
-    
+
     const container = document.createElement('div');
     container.className = 'zoom-container';
     const clone = element.cloneNode(true);
@@ -732,25 +749,24 @@ function exitZoomMode() {
     document.body.className = 'mode-ppt';
     const container = document.getElementById('scroll-container');
     if (container) container.classList.add('mode-ppt');
-    
+
     const zoomContainer = document.querySelector('.zoom-container');
     if (zoomContainer) zoomContainer.remove();
     zoomTarget = null;
-    
+
     const slides = document.querySelectorAll('.slide');
     if (slides[currentSlideIndex]) {
         const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
         window.scrollTo({ top: targetTop, behavior: 'instant' });
     }
-    
+
     updateFocus(true);
 }
 
-// ===== Navigation Functions =====
 function navigateSlide(direction) {
     const slides = document.querySelectorAll('.slide');
     const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
-    
+
     if (newIndex !== currentSlideIndex) {
         currentSlideIndex = newIndex;
         isAtScrollBoundary = false;
@@ -759,15 +775,16 @@ function navigateSlide(direction) {
     }
 }
 
-function updateFocus(preserveIndex = false) {
+function updateFocus(preserveIndex) {
+    preserveIndex = preserveIndex || false;
     const savedIndex = focusedDiagramIndex;
     clearFocus();
     if (!preserveIndex) isAtScrollBoundary = false;
     const slide = document.querySelectorAll('.slide')[currentSlideIndex];
     if (!slide) return;
-    
+
     const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
-        .filter(el => !el.classList.contains('no-focus'));
+        .filter(function(el) { return !el.classList.contains('no-focus'); });
     if (focusables.length > 0) {
         if (!preserveIndex || savedIndex < 0 || savedIndex >= focusables.length) {
             focusedDiagramIndex = 0;
@@ -779,7 +796,7 @@ function updateFocus(preserveIndex = false) {
 }
 
 function clearFocus() {
-    document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+    document.querySelectorAll('.diagram-focusable.focused').forEach(function(el) {
         el.classList.remove('focused');
     });
     focusedDiagramIndex = -1;
@@ -788,41 +805,39 @@ function clearFocus() {
 function handleFocusSwitch(key) {
     const slide = document.querySelectorAll('.slide')[currentSlideIndex];
     if (!slide) return;
-    
+
     const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
-        .filter(el => !el.classList.contains('no-focus'));
+        .filter(function(el) { return !el.classList.contains('no-focus'); });
     if (focusables.length <= 1) return;
-    
-    let newIndex;
+
+    var newIndex;
     if (key === 'ArrowRight') {
         newIndex = Math.min(focusedDiagramIndex + 1, focusables.length - 1);
     } else {
         newIndex = Math.max(focusedDiagramIndex - 1, 0);
     }
-    
+
     focusedDiagramIndex = newIndex;
-    
-    document.querySelectorAll('.diagram-focusable.focused').forEach(el => {
+
+    document.querySelectorAll('.diagram-focusable.focused').forEach(function(el) {
         el.classList.remove('focused');
     });
     focusables[focusedDiagramIndex].classList.add('focused');
 }
 
-// ===== Zoom Scroll Functions =====
 function scrollZoomContainer(direction) {
     const container = document.querySelector('.zoom-container');
     if (!container) return false;
-    
+
     const scrollAmount = 100;
-    const { scrollTop, scrollLeft, scrollHeight, scrollWidth, clientHeight, clientWidth } = container;
-    
+
     switch(direction) {
         case 'up':
-            if (scrollTop <= 0) return false;
+            if (container.scrollTop <= 0) return false;
             container.scrollTop -= scrollAmount;
             return true;
         case 'down':
-            if (scrollTop + clientHeight >= scrollHeight) return false;
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight) return false;
             container.scrollTop += scrollAmount;
             return true;
         case 'left':
@@ -835,19 +850,18 @@ function scrollZoomContainer(direction) {
     return false;
 }
 
-// ===== Scroll Within Slide Functions =====
 function canScrollVertically(direction) {
     const container = document.getElementById('scroll-container');
     if (!container) return false;
     const slides = document.querySelectorAll('.slide');
     const slide = slides[currentSlideIndex];
     if (!slide) return false;
-    
+
     const containerScrollTop = container.scrollTop;
     const containerHeight = container.clientHeight;
     const slideTop = slide.offsetTop - container.offsetTop;
     const slideBottom = slideTop + slide.offsetHeight;
-    
+
     if (direction > 0) {
         return containerScrollTop + containerHeight < slideBottom - 10;
     } else {
@@ -861,17 +875,17 @@ function canScrollHorizontally(direction) {
     const slides = document.querySelectorAll('.slide');
     const slide = slides[currentSlideIndex];
     if (!slide) return false;
-    
+
     const focusables = Array.from(slide.querySelectorAll('.diagram-focusable'))
-        .filter(el => !el.classList.contains('no-focus'));
+        .filter(function(el) { return !el.classList.contains('no-focus'); });
     if (focusables.length === 0 || focusedDiagramIndex < 0 || focusedDiagramIndex >= focusables.length) return false;
-    
+
     const focused = focusables[focusedDiagramIndex];
     const diagramWidth = focused.scrollWidth;
     const containerWidth = container.clientWidth;
-    
+
     if (diagramWidth <= containerWidth + 10) return false;
-    
+
     if (direction > 0) {
         return container.scrollLeft + containerWidth < diagramWidth - 10;
     } else {
@@ -882,41 +896,43 @@ function canScrollHorizontally(direction) {
 function scrollSlideContent(direction, axis) {
     const container = document.getElementById('scroll-container');
     if (!container) return false;
-    
+
     const oldSnap = container.style.scrollSnapType;
     container.style.scrollSnapType = 'none';
-    
+
     const dimension = axis === 'y' ? 'clientHeight' : 'clientWidth';
     const scrollProp = axis === 'y' ? 'scrollTop' : 'scrollLeft';
     const step = container[dimension] * 0.8;
-    
+
     container.scrollTo({
         [axis === 'y' ? 'top' : 'left']: container[scrollProp] + direction * step,
         behavior: 'smooth'
     });
-    
-    setTimeout(() => {
+
+    setTimeout(function() {
         container.style.scrollSnapType = oldSnap || 'y proximity';
     }, 500);
-    
+
     return true;
 }
 
 function triggerBounce(direction, axis) {
     const container = document.getElementById('scroll-container');
     if (!container) return;
-    
-    const bounceClass = axis === 'y'
-        ? (direction > 0 ? 'bounce-down' : 'bounce-up')
-        : (direction > 0 ? 'bounce-right' : 'bounce-left');
-    
+
+    var bounceClass;
+    if (axis === 'y') {
+        bounceClass = direction > 0 ? 'bounce-down' : 'bounce-up';
+    } else {
+        bounceClass = direction > 0 ? 'bounce-right' : 'bounce-left';
+    }
+
     container.classList.add(bounceClass);
-    setTimeout(() => container.classList.remove(bounceClass), 300);
+    setTimeout(function() { container.classList.remove(bounceClass); }, 300);
 }
 
-// ===== Mermaid Initialization =====
-window.addEventListener('load', () => {
-    document.querySelectorAll('.mermaid svg, img').forEach(el => {
+window.addEventListener('load', function() {
+    document.querySelectorAll('.mermaid svg, img').forEach(function(el) {
         const rect = el.getBoundingClientRect();
         const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;
         if (needsZoom) {
@@ -924,255 +940,6 @@ window.addEventListener('load', () => {
             if (wrapper) wrapper.classList.add('needs-zoom');
         }
     });
-});
-```
-
----
-
-## HTML Structure Templates
-
-### Standard Slide
-
-```html
-<div class="slide">
-    <span class="slide-number">N</span>
-    <div class="content">
-        <h2><span class="emoji">X</span> 标题</h2>
-        内容...
-    </div>
-</div>
-```
-
-### Cover Slide
-
-```html
-<div class="slide cover">
-    <div>
-        <h1>标题</h1>
-        <p class="subtitle">副标题</p>
-        <p class="meta">作者 · 日期</p>
-    </div>
-</div>
-```
-
-### Image with Zoom Support
-
-```html
-<div class="diagram-focusable" data-focusable>
-    <img src="..." alt="..." style="max-width: 100%; height: auto;">
-</div>
-```
-
-### Mermaid Diagram
-
-```html
-<div class="diagram-focusable" data-focusable>
-    <div class="mermaid">
-        graph TD
-            A[开始] --> B{判断}
-            B -->|是| C[处理]
-            B -->|否| D[结束]
-    </div>
-</div>
-```
-
-### No-Focus Diagrams
-
-To make a diagram non-focusable (skipped during left/right navigation), add the `.no-focus` class:
-
-```html
-<div class="diagram-focusable no-focus" data-focusable>
-    <img src="..." alt="decorative image">
-</div>
-```
-
-Visual effect: semi-transparent (opacity: 0.6), no hover effect, skipped during focus switching.
-
-### Grid Layout
-
-```html
-<div class="grid-2">
-    <div class="card">
-        <h4>标题</h4>
-        <p>内容</p>
-    </div>
-    <div class="card">
-        <h4>标题</h4>
-        <p>内容</p>
-    </div>
-</div>
-```
-
-### Code Block
-
-```html
-<pre><code><span class="comment"># 注释</span>
-<span class="cmd">$</span> command <span class="string">"arg"</span>
-<span class="keyword">keyword</span> value</code></pre>
-```
-
-### Metrics Row
-
-```html
-<div class="metrics-row">
-    <div class="metric">
-        <span class="value">42</span>
-        <span class="label">标签</span>
-    </div>
-    <div class="metric">
-        <span class="value">100%</span>
-        <span class="label">完成率</span>
-    </div>
-</div>
-```
-
-### Points List
-
-```html
-<div class="point">普通要点</div>
-<div class="point highlight">高亮要点</div>
-<div class="point star">重要要点</div>
-```
-
-### Flow / Numbered Steps
-
-```html
-<div class="flow">
-    <div class="flow-item">第一步描述</div>
-    <div class="flow-item">第二步描述</div>
-    <div class="flow-item">第三步描述</div>
-</div>
-```
-
-### Tags
-
-```html
-<span class="tag">默认</span>
-<span class="tag tag-blue">蓝色</span>
-<span class="tag tag-green">绿色</span>
-<span class="tag tag-orange">橙色</span>
-<span class="tag tag-purple">紫色</span>
-```
-
----
-
-## Complete HTML Skeleton
-
-Use this as the starting template for generated documents:
-
-```html
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>标题</title>
-    <style>
-        /* [PASTE FULL CSS HERE] */
-    </style>
-</head>
-<body>
-    <div id="scroll-container">
-        <!-- Slide 1: Cover -->
-        <div class="slide cover">
-            <div>
-                <h1>标题</h1>
-                <p class="subtitle">副标题</p>
-                <p class="meta">作者 · 日期</p>
-            </div>
-        </div>
-
-        <!-- Slide 2+: Content -->
-        <div class="slide">
-            <span class="slide-number">2</span>
-            <div class="content">
-                <h2><span class="emoji">X</span> 标题</h2>
-                <!-- content here -->
-            </div>
-        </div>
-
-        <!-- More slides... -->
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script>
-        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
-        /* [PASTE FULL JS HERE] */
-    </script>
+});</script>
 </body>
 </html>
-```
-
----
-
-## Mermaid Guide
-
-### CDN
-```html
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-```
-
-### Initialization
-```javascript
-mermaid.initialize({ startOnLoad: true, theme: 'dark' });
-```
-
-### Supported Diagram Types
-- `graph TD` / `graph LR` — Flowchart
-- `sequenceDiagram` — Sequence diagram
-- `classDiagram` — Class diagram
-- `stateDiagram-v2` — State diagram
-- `gantt` — Gantt chart
-- `mindmap` — Mind map
-
-### Usage Rules
-- Wrap in `<div class="mermaid">` tags, NOT markdown code fences
-- Use `data-focusable` on parent div to enable zoom mode
-- Keep diagrams simple; complex ones may not render well
-
-### Example
-```html
-<div class="diagram-focusable" data-focusable>
-    <div class="mermaid">
-        sequenceDiagram
-            participant A as 用户
-            participant B as 系统
-            A->>B: 请求
-            B-->>A: 响应
-    </div>
-</div>
-```
-
----
-
-## Image Guide
-
-- Recommended width: ≤ 1200px for full display
-- Larger images may trigger zoom mode automatically
-- Use `data-focusable` attribute on wrapper to enable focus/zoom
-- Always include `alt` text for accessibility
-
-### Example
-```html
-<div class="diagram-focusable" data-focusable>
-    <img src="screenshot.png" alt="功能截图" style="max-width: 100%; height: auto;">
-</div>
-```
-
----
-
-## Keyboard Reference
-
-| Mode | Key | Action |
-|------|-----|--------|
-| DOC | `Enter` | Enter PPT mode |
-| DOC | Arrow keys | Normal scroll |
-| PPT | `Esc` | Back to DOC mode |
-| PPT | `↓` / `Space` | Scroll content / Next slide |
-| PPT | `↑` | Scroll content / Previous slide |
-| PPT | `←` / `→` | Scroll content / Switch focus |
-| PPT | `Enter` | Zoom into focused diagram |
-| ZOOM | `Esc` | Exit zoom, back to PPT |
-| ZOOM | Arrow keys | Scroll zoomed content |
-| ZOOM | `↑` at top | Exit zoom, go to prev slide |
-| ZOOM | `↓` at bottom | Exit zoom, go to next slide |
