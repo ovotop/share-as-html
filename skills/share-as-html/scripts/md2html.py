@@ -11,6 +11,7 @@ Output is a self-contained HTML file with DOC/PPT/Zoom modes.
 import argparse
 import base64
 import html
+import mimetypes
 import os
 import re
 import sys
@@ -1010,7 +1011,7 @@ class Slide:
                 # cards → grid, everything else → full-width below
                 card_end = 0
                 for b in blocks:
-                    if '<div class="card' in b:
+                    if b.strip().startswith('<div class="card'):
                         card_end += 1
                     else:
                         break
@@ -1269,13 +1270,6 @@ def restore_mermaid_blocks(raw_html: str, mermaid_blocks: list[str]) -> str:
     )
 
 
-def fix_image_paths(html_str: str) -> str:
-    """Adjust local image paths from assets/ to ../assets/ for output/ directory."""
-    html_str = re.sub(r"""src="assets/""", r"""src="../assets/""", html_str)
-    html_str = re.sub(r"src='assets/", r"src='../assets/", html_str)
-    return html_str
-
-
 def parse_slide(filepath: str) -> Optional[Slide]:
     """Parse a single slide .md file into a Slide object."""
     with open(filepath, "r", encoding="utf-8") as f:
@@ -1305,8 +1299,6 @@ def parse_slide(filepath: str) -> Optional[Slide]:
         extensions=["extra", "md_in_html", "codehilite", "fenced_code", "tables"]
     )
     body_html = md.convert(body)
-
-    body_html = fix_image_paths(body_html)
 
     # Restore mermaid placeholders (must be before process_custom_tags to keep tag content intact)
     body_html = restore_mermaid_blocks(body_html, mermaid_blocks)
@@ -1359,6 +1351,43 @@ def render_html(
     )
 
 
+def embed_images(html: str, project_dir: str, threshold_bytes: int) -> str:
+    """Embed local assets/ images as base64 data URIs when file size ≤ threshold.
+
+    Images above threshold keep ``../assets/`` relative paths.
+    HTTP/HTTPS and data: URIs are left untouched.
+    """
+    assets_dir = os.path.join(project_dir, "assets")
+
+    def _replace_src(m: re.Match) -> str:
+        quote = m.group(1)
+        path = m.group(2)
+
+        if not path.startswith("assets/"):
+            return m.group(0)
+
+        basename = os.path.basename(path)
+        img_path = os.path.join(assets_dir, basename)
+
+        if not os.path.isfile(img_path):
+            print(f"Warning: Image not found: {img_path}", file=sys.stderr)
+            return f'src={quote}../{path}{quote}'
+
+        file_size = os.path.getsize(img_path)
+
+        if file_size <= threshold_bytes:
+            mime_type, _ = mimetypes.guess_type(img_path)
+            if not mime_type or not mime_type.startswith("image/"):
+                mime_type = "image/png"
+            with open(img_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("ascii")
+            return f'src={quote}data:{mime_type};base64,{b64}{quote}'
+        else:
+            return f'src={quote}../{path}{quote}'
+
+    return re.sub(r'src=(["\'])(?!https?://|data:)([^"\']*?)\1', _replace_src, html)
+
+
 # ============================================================================
 # CLI Interface
 # ============================================================================
@@ -1374,6 +1403,14 @@ def main() -> None:
     parser.add_argument(
         "-o", "--output",
         help="Output HTML file path (default: <project_dir>/output/sharing.html)",
+    )
+    parser.add_argument(
+        "--no-embed", action="store_true", default=False,
+        help="Disable base64 image embedding; all images use relative paths",
+    )
+    parser.add_argument(
+        "--embed-threshold", type=float, default=1.0, metavar="MB",
+        help="Max image size (MB) to embed as base64 (default: 1.0)",
     )
     args = parser.parse_args()
 
@@ -1432,6 +1469,12 @@ def main() -> None:
 
     # Render HTML
     html = render_html(slides, meta, override_css)
+
+    if args.no_embed:
+        threshold_bytes = -1  #   0 always > threshold → path-fix only
+    else:
+        threshold_bytes = int(args.embed_threshold * 1024 * 1024)
+    html = embed_images(html, project_dir, threshold_bytes)
 
     # Write output
     if args.output:
