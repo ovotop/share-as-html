@@ -606,5 +606,26 @@ for (const FILE of HTML_FILES) {
                 }
             }
         });
+
+        test('Footer: visible in DOC mode, hidden in PPT mode', async ({ page }) => {
+            // Check footer exists in initial DOC mode
+            const footer = page.locator('.doc-footer');
+            await expect(footer.first()).toBeVisible();
+
+            // Enter PPT mode - footer should be hidden
+            await enterPPT(page);
+            await expect(footer.first()).not.toBeVisible();
+
+            // Return to DOC mode - footer should be visible again
+            await exitPPT(page);
+            await expect(footer.first()).toBeVisible();
+        });
+
+        test('Footer: link opens correct URL', async ({ page }) => {
+            const link = page.locator('.doc-footer a');
+            await expect(link).toHaveAttribute('href', 'https://github.com/ovotop/share-as-html');
+            await expect(link).toHaveAttribute('target', '_blank');
+            await expect(link).toHaveAttribute('rel', 'noopener');
+        });
     });
 }

@@ -218,6 +218,13 @@
             display: inline-block;
             margin-bottom: 12px;
         }
+
+        /* ===== Doc Footer (DOC mode only) ===== */
+        .doc-footer { text-align: center; padding: 24px 0 32px 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--surface2); margin-top: 48px; }
+        .doc-footer a { color: var(--text-dim); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .doc-footer a:hover { color: var(--accent); }
+        .doc-footer img { vertical-align: middle; }
+        body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }
     </style>
 </head>
 <body>
@@ -333,6 +340,12 @@ graph TD
     </div>
 </div>
 
+<div class="doc-footer">
+    <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
+        <img src="https://avatars.githubusercontent.com/u/166823538?s=32" alt="ovotop" width="16" height="16">
+        Powered by ovotop/share-as-html
+    </a>
+</div>
 </div>
 
 <div class="keyboard-hint">

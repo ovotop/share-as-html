@@ -29,7 +29,7 @@ Two paths available. **Prefer Markdown for anything beyond a one-off quick share
 
 ### Path A: Markdown (Recommended)
 
-Create a Markdown project and convert to HTML with `md2html.py`.
+Create a Markdown project and convert to HTML with `scripts/md2html.py`.
 
 **Step 1: Create project structure**
 
@@ -76,7 +76,7 @@ Content for DOC mode (reader-facing article prose).
 **Step 3: Convert to HTML**
 
 ```bash
-python md2html.py <project_dir> [-o <output.html>]
+python scripts/md2html.py <project_dir> [-o <output.html>]
 ```
 
 Dependencies: `pip install markdown PyYAML jinja2`
@@ -550,6 +550,37 @@ body.mode-zoom .zoom-content {
     body.mode-ppt .slide { padding: 40px 20px; }
     .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
+}
+
+/* ===== Doc Footer (DOC mode only) ===== */
+.doc-footer {
+    text-align: center;
+    padding: 24px 0 32px 0;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--surface2);
+    margin-top: 48px;
+}
+
+.doc-footer a {
+    color: var(--text-dim);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.doc-footer a:hover {
+    color: var(--accent);
+}
+
+.doc-footer img {
+    vertical-align: middle;
+}
+
+body.mode-ppt .doc-footer,
+body.mode-zoom .doc-footer {
+    display: none;
 }
 ```
 
@@ -1093,6 +1124,13 @@ Use this as the starting template for generated documents:
         </div>
 
         <!-- More slides... -->
+
+        <div class="doc-footer">
+            <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
+                <img src="https://avatars.githubusercontent.com/u/166823538?s=32" alt="ovotop" width="16" height="16">
+                Powered by ovotop/share-as-html
+            </a>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>

@@ -6,11 +6,27 @@ Development & testing workspace for the `share-as-html` OpenCode skill. This rep
 
 ## Skill deployment
 
-The **canonical source** for the skill is `skills/share-as-html/SKILL.md` — this is the git-tracked version. The **deployed** skill lives at `.opencode/skills/share-as-html/SKILL.md` (project-level, gitignored by `.gitignore`). When iterating on the skill:
+The **canonical source** for the skill is `skills/share-as-html/` — this is the git-tracked, skill-creator-compliant directory. Structure:
+
+```
+skills/share-as-html/
+├── SKILL.md              ← Main skill instructions
+├── scripts/
+│   ├── md2html.py        ← Markdown-to-HTML converter
+│   └── requirements.txt  ← Python dependencies
+└── references/
+```
+
+The **deployed** skill lives at `.opencode/skills/sharing-in-html/` (project-level, gitignored by `.gitignore`). When iterating on the skill:
 
 1. Edit `skills/share-as-html/SKILL.md` in this repo
-2. Sync to `.opencode/skills/share-as-html/SKILL.md` for OpenCode to pick up changes
-3. Commit the change to track it in git
+2. Sync the entire `skills/share-as-html/` directory to `.opencode/skills/sharing-in-html/` for OpenCode to pick up changes:
+   ```bash
+   cp -r skills/share-as-html/* .opencode/skills/sharing-in-html/
+   ```
+3. Commit changes to `skills/share-as-html/` to track them in git
+
+The repo root `md2html.py` is a symlink → `skills/share-as-html/scripts/md2html.py` for development convenience.
 
 The `.opencode/skills/` directory also contains OpenSpec project skills (`openspec-*`). The `skills/` directory at repo root is for the published share-as-html skill.
 
