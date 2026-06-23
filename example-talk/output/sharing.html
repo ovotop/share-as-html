@@ -46,11 +46,12 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 
 .slide-number {
     position: absolute;
-    top: 24px;
+    bottom: 24px;
     right: 32px;
     font-size: 14px;
     color: var(--text-dim);
     font-family: 'SF Mono', monospace;
+    z-index: 1;
 }
 
 .cover {
@@ -137,9 +138,9 @@ p { margin-bottom: 12px; color: var(--text); font-size: clamp(14px, 1.5vw, 16px)
 
 .card p { font-size: 14px; color: var(--text-dim); }
 
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
-.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-2 { display: grid; gap: 16px; margin: 16px 0; }
+.grid-3 { display: grid; gap: 16px; margin: 16px 0; }
+.grid-4 { display: grid; gap: 16px; margin: 16px 0; }
 
 .flex-row { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
 .flex-col { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
@@ -337,6 +338,29 @@ ul li::before {
     height: auto;
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ===== Image Slide Layout ===== */
+.slide-image-fullscreen {
+    /* DOC mode: constrains to content area, inherits slide padding */
+}
+
+.slide-image-fullscreen img {
+    max-width: 900px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.slide-image-content img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 /* Diagram Focus State */
 .diagram-focusable {
     cursor: pointer;
@@ -358,6 +382,8 @@ ul li::before {
 
 /* Reader narrative (DOC mode only) */
 .reader-narrative {
+    max-width: 900px;
+    width: 100%;
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid var(--border);
@@ -373,22 +399,51 @@ body.mode-ppt { overflow: hidden; }
 
 body.mode-ppt .slide {
     min-height: 100vh;
-    padding: 60px 80px;
+    padding: 60px 120px;
     border-bottom: 1px solid var(--border);
     scroll-snap-align: start;
     scroll-snap-stop: always;
+}
+
+body.mode-ppt .slide .content {
+    width: 840px;
+    max-width: none;
+    align-self: center;
+    margin-top: auto;
+    margin-bottom: auto;
+    transform-origin: center center;
+}
+
+body.mode-ppt .slide.cover {
+    justify-content: center;
     align-items: center;
 }
 
-body.mode-ppt .slide .content { max-width: 1100px; }
-
 body.mode-ppt .reader-narrative { display: none; }
+
+body.mode-ppt .slide-image-fullscreen {
+    min-height: 100vh;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+body.mode-ppt .slide-image-fullscreen img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+}
 
 #scroll-container.mode-ppt {
     scroll-snap-type: y proximity;
     overflow-y: scroll;
     overflow-x: auto;
     height: 100vh;
+    scrollbar-gutter: stable;
 }
 
 /* Bounce Animations */
@@ -436,12 +491,28 @@ body.mode-zoom .zoom-container {
 
 body.mode-zoom .reader-narrative { display: none; }
 
+body.mode-zoom .zoom-content {
+    max-width: calc(var(--zoom-scale, 1) * 100vw);
+    max-height: calc(var(--zoom-scale, 1) * 100vh);
+}
+
+body.mode-zoom .zoom-content.fill {
+    width: calc(var(--zoom-scale, 1) * 100vw);
+    height: calc(var(--zoom-scale, 1) * 100vh);
+    object-fit: cover;
+    max-width: none;
+    max-height: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .slide { padding: 24px 16px; }
-    body.mode-ppt .slide { padding: 40px 20px; }
+    body.mode-ppt .slide { padding: 40px 20px; overflow: visible; }
+    body.mode-ppt .slide .content { width: 100%; aspect-ratio: auto; transform: none; }
     .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
+    body.mode-ppt .slide-image-fullscreen { min-height: 60vh; }
+    body.mode-ppt .slide-image-fullscreen img { object-fit: contain; }
 }
 
 @media print {
@@ -482,21 +553,20 @@ body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>
         </div>
         <div class="slide " data-slide="2">
             <span class="slide-number">02</span>
+            <h2>为什么 Android 需要 CLI？</h2>
             <div class="content">
-                <h2>为什么 Android 需要 CLI？</h2>
-                <div class="grid-2" style="--grid-cols:2; --grid-gap:24px; gap:24px"><div class="card"><h4>传统痛点</h4>
-                - Android Studio 启动慢、吃内存
-                - CI/CD 流程依赖 IDE 不现实
-                - AI Agent 需要轻量交互入口
-                - 跨平台脚本化操作困难
-                </div><div class="card"><h4>CLI 的价值</h4>
-                - 单一入口，统一管理所有 Android 操作
-                - 可脚本化、可组合、可自动化
-                - 为 AI Agent 提供标准化工具接口
-                - 轻量、快速、无 GUI 依赖
-                </div><p><div class="callout callout-info">
-                <strong>思考</strong>: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？
-                </div></p></div>
+                <div class="grid-2" style="--grid-cols:2; --grid-gap:16px; gap:16px; grid-template-columns: 1fr 1fr"><div class="card"><h4>传统痛点</h4><ul>
+                <li>Android Studio 启动慢、吃内存</li>
+                <li>CI/CD 流程依赖 IDE 不现实</li>
+                <li>AI Agent 需要轻量交互入口</li>
+                <li>跨平台脚本化操作困难</li>
+                </ul></div><div class="card"><h4>CLI 的价值</h4><ul>
+                <li>单一入口，统一管理所有 Android 操作</li>
+                <li>可脚本化、可组合、可自动化</li>
+                <li>为 AI Agent 提供标准化工具接口</li>
+                <li>轻量、快速、无 GUI 依赖</li>
+                </ul></div></div><div class="callout callout-info"><p><strong>思考</strong>: 如果 AI Agent 想操作 Android 设备，需要怎样的接口？</p>
+                </div>
             </div>
             <div class="reader-narrative">
                 <p>在 Android 开发生态中，命令行工具长期处于次要地位。
@@ -519,25 +589,21 @@ body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>
         </div>
         <div class="slide " data-slide="3">
             <span class="slide-number">03</span>
+            <h2>整体架构</h2>
             <div class="content">
-                <h2>整体架构</h2>
-                <div class="grid-3" style="--grid-cols:3; --grid-gap:20px; gap:20px"><div class="card"><h4>CLI 入口</h4>
-                命令行解析、参数校验、帮助系统、子命令分发
-                </div><div class="card"><h4>Core 引擎</h4>
-                设备发现与管理、任务调度、状态机、插件系统
-                </div><div class="card"><h4>Reporter</h4>
-                HTML 报告输出、JSON 格式化、实时日志、性能统计
-                </div><p><div class="diagram-focusable" data-focusable="None"><div class="mermaid">
+                <div class="grid-3" style="--grid-cols:3; --grid-gap:16px; gap:16px; grid-template-columns: 1fr 1fr 1fr"><div class="card"><h4>CLI 入口</h4><p>命令行解析、参数校验、帮助系统、子命令分发</p></div><div class="card"><h4>Core 引擎</h4><p>设备发现与管理、任务调度、状态机、插件系统</p></div><div class="card"><h4>Reporter</h4><p>HTML 报告输出、JSON 格式化、实时日志、性能统计</p>
+                <div class="diagram-focusable" data-focusable><div class="mermaid">
                 graph TD
-                    A[CLI Layer] --> B[Core Engine]
-                    B --> C[ADB Bridge]
-                    B --> D[Log Parser]
-                    B --> E[Task Scheduler]
-                    C --> F[Android Device]
-                    D --> G[Reporter]
-                    E --> G
-                    G --> H[HTML Output]
-                </div></div></p></div>
+                    A[CLI Layer] --&gt; B[Core Engine]
+                    B --&gt; C[ADB Bridge]
+                    B --&gt; D[Log Parser]
+                    B --&gt; E[Task Scheduler]
+                    C --&gt; F[Android Device]
+                    D --&gt; G[Reporter]
+                    E --&gt; G
+                    G --&gt; H[HTML Output]
+                </div></div>
+                </div></div>
             </div>
             <div class="reader-narrative">
                 <p>Android CLI 采用经典的三层架构：</p>
@@ -556,12 +622,10 @@ body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>
         </div>
         <div class="slide " data-slide="4">
             <span class="slide-number">04</span>
+            <h2>总结</h2>
             <div class="content">
-                <h2>总结</h2>
-                <p><div class="callout callout-info">
-                <strong>核心价值</strong>: Android CLI 为开发者提供了轻量、可脚本化的
-                工具链入口，尤其适合 CI/CD 和 AI Agent 场景。
-                </div></p>
+                <div class="callout callout-info"><p><strong>核心价值</strong>: Android CLI 为开发者提供了轻量、可脚本化的
+                工具链入口，尤其适合 CI/CD 和 AI Agent 场景。</p>
                 <h3>关键特性</h3>
                 <ul>
                 <li>✅ 单一入口，统一管理</li>
@@ -569,6 +633,7 @@ body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>
                 <li>✅ 原生支持脚本化和自动化</li>
                 <li>✅ 为 AI Agent 提供标准化接口</li>
                 </ul>
+                </div>
             </div>
             <div class="reader-narrative">
                 <p>本文介绍了 Android CLI 的设计动机、核心架构和关键特性。
@@ -583,7 +648,7 @@ body.mode-ppt .doc-footer, body.mode-zoom .doc-footer { display: none; }</style>
         </div>
         <div class="doc-footer">
             <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
-                Powered by <img src="https://avatars.githubusercontent.com/u/61374409?s=96&v=4" alt="ovotop" width="48" height="48"> ovotop/share-as-html
+                Powered by <img src="https://avatars.githubusercontent.com/u/61374409?s=96&amp;v=4" alt="ovotop" width="32" height="32"> ovotop/share-as-html
             </a>
         </div>
     </div>
@@ -594,6 +659,9 @@ let currentSlideIndex = 0;
 let focusedDiagramIndex = -1;
 let isAtScrollBoundary = false;
 let zoomTarget = null;
+let zoomScale = 1.0;
+let zoomFitMode = 'fit';
+const ZOOM_SCALE_STEPS = [1.0, 1.25, 1.5, 2.0, 3.0];
 
 document.addEventListener('keydown', (e) => {
     const slides = document.querySelectorAll('.slide');
@@ -675,6 +743,24 @@ document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 exitZoomMode();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                zoomFitMode = zoomFitMode === 'fit' ? 'fill' : 'fit';
+                applyZoomScale();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                const idx = ZOOM_SCALE_STEPS.indexOf(zoomScale);
+                if (idx < ZOOM_SCALE_STEPS.length - 1) {
+                    zoomScale = ZOOM_SCALE_STEPS[idx + 1];
+                    applyZoomScale();
+                }
+            } else if (e.key === '-') {
+                e.preventDefault();
+                const idx = ZOOM_SCALE_STEPS.indexOf(zoomScale);
+                if (idx > 0) {
+                    zoomScale = ZOOM_SCALE_STEPS[idx - 1];
+                    applyZoomScale();
+                }
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
                 scrollZoomContainer('left');
@@ -722,8 +808,14 @@ function enterPPTMode() {
     });
 
     currentSlideIndex = nearestIndex;
-    slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+    if (container) {
+        const targetTop = slides[nearestIndex].offsetTop - container.offsetTop;
+        container.scrollTop = targetTop;
+    } else {
+        slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+    }
     updateFocus();
+    updateContentScale();
 }
 
 function enterDocMode() {
@@ -732,6 +824,9 @@ function enterDocMode() {
     const container = document.getElementById('scroll-container');
     if (container) container.classList.remove('mode-ppt');
     clearFocus();
+    document.querySelectorAll('.slide .content').forEach(function(el) {
+        el.style.transform = '';
+    });
 
     const slide = document.querySelectorAll('.slide')[currentSlideIndex];
     if (slide) {
@@ -743,6 +838,8 @@ function enterDocMode() {
 function enterZoomMode(element) {
     currentState = 'PPT_ZOOM';
     zoomTarget = element;
+    zoomScale = 1.0;
+    zoomFitMode = 'fit';
     document.body.className = 'mode-zoom';
 
     const container = document.createElement('div');
@@ -751,6 +848,7 @@ function enterZoomMode(element) {
     clone.classList.add('zoom-content');
     container.appendChild(clone);
     document.body.appendChild(container);
+    applyZoomScale();
 }
 
 function exitZoomMode() {
@@ -766,21 +864,32 @@ function exitZoomMode() {
     const slides = document.querySelectorAll('.slide');
     if (slides[currentSlideIndex]) {
         const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
-        window.scrollTo({ top: targetTop, behavior: 'instant' });
+        if (container) {
+            container.scrollTo({ top: targetTop, behavior: 'instant' });
+        } else {
+            window.scrollTo({ top: targetTop, behavior: 'instant' });
+        }
     }
 
     updateFocus(true);
 }
 
 function navigateSlide(direction) {
+    const container = document.getElementById('scroll-container');
     const slides = document.querySelectorAll('.slide');
     const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
 
     if (newIndex !== currentSlideIndex) {
         currentSlideIndex = newIndex;
         isAtScrollBoundary = false;
-        slides[newIndex].scrollIntoView({ behavior: 'instant' });
+        const targetTop = slides[newIndex].offsetTop - (container ? container.offsetTop : 0);
+        if (container) {
+            container.scrollTop = targetTop;
+        } else {
+            slides[newIndex].scrollIntoView({ behavior: 'instant' });
+        }
         updateFocus();
+        updateContentScale();
     }
 }
 
@@ -859,6 +968,13 @@ function scrollZoomContainer(direction) {
     return false;
 }
 
+function applyZoomScale() {
+    const el = document.querySelector('.zoom-content');
+    if (!el) return;
+    el.style.setProperty('--zoom-scale', zoomScale);
+    el.classList.toggle('fill', zoomFitMode === 'fill');
+}
+
 function canScrollVertically(direction) {
     const container = document.getElementById('scroll-container');
     if (!container) return false;
@@ -872,7 +988,7 @@ function canScrollVertically(direction) {
     const slideBottom = slideTop + slide.offsetHeight;
 
     if (direction > 0) {
-        return containerScrollTop + containerHeight < slideBottom - 10;
+        return containerScrollTop + containerHeight < slideBottom - 30;
     } else {
         return containerScrollTop > slideTop + 10;
     }
@@ -940,7 +1056,21 @@ function triggerBounce(direction, axis) {
     setTimeout(function() { container.classList.remove(bounceClass); }, 300);
 }
 
+function updateContentScale() {
+    if (currentState !== 'PPT_FULL') return;
+    if (window.innerWidth <= 768) return;
+    const container = document.getElementById('scroll-container');
+    if (!container) return;
+    const availW = container.clientWidth - 240;
+    const availH = container.clientHeight - 120;
+    const scale = Math.min(availW / 840, availH / 472.5);
+    document.querySelectorAll('.slide .content').forEach(function(el) {
+        el.style.transform = 'scale(' + scale + ')';
+    });
+}
+
 window.addEventListener('load', function() {
+    window.addEventListener('resize', updateContentScale);
     document.querySelectorAll('.mermaid svg, img').forEach(function(el) {
         const rect = el.getBoundingClientRect();
         const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;

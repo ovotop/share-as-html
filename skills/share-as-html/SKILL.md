@@ -62,6 +62,15 @@ layout:
 ---
 ```
 
+```yaml
+# Image slide layout:
+layout:
+  image:
+    src: assets/hero.jpg
+    alt: Cover image
+    mode: fullscreen  # or "content" (default)
+```
+
 **Cell types:**
 
 | Type | YAML | Slot body |
@@ -72,6 +81,7 @@ layout:
 | `metrics` | `{metrics: null}` | `值 : 标签` lines, one per metric |
 | `split` | `{split: null}` | Two consecutive slots → left/right columns |
 | `raw` | `{raw: null}` | Plain markdown, no container wrapper |
+| `image` | `{image: {src, alt, mode}}` | Single image as slide content (mode: fullscreen or content) |
 
 **Slot delimiter** — `=== slot ===` separates cell content in body:
 
@@ -504,6 +514,24 @@ ul li::before {
     border-color: transparent !important;
 }
 
+/* ===== Image Slide Layout ===== */
+.slide-image-fullscreen {
+    /* DOC mode: constrains to content area, inherits slide padding */
+}
+
+.slide-image-fullscreen img {
+    max-width: 900px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.slide-image-content img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 /* ===== PPT Mode (Snap Scrolling) ===== */
 body.mode-ppt {
     overflow: hidden;
@@ -525,6 +553,23 @@ body.mode-ppt .slide .content { max-width: 1100px; }
     overflow-y: scroll;
     overflow-x: auto;
     height: 100vh;
+}
+
+body.mode-ppt .slide-image-fullscreen {
+    min-height: 100vh;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+body.mode-ppt .slide-image-fullscreen img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
 }
 
 /* ===== Bounce Animations ===== */
@@ -582,6 +627,8 @@ body.mode-zoom .zoom-content {
     body.mode-ppt .slide { padding: 40px 20px; }
     .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
+    body.mode-ppt .slide-image-fullscreen { min-height: 60vh; }
+    body.mode-ppt .slide-image-fullscreen img { object-fit: contain; }
 }
 
 /* ===== Doc Footer (DOC mode only) ===== */
@@ -1019,6 +1066,26 @@ window.addEventListener('load', () => {
 </div>
 ```
 
+### Image Slide (Fullscreen)
+
+```html
+<div class="slide slide-image-fullscreen">
+    <span class="slide-number">N</span>
+    <img src="assets/hero.jpg" alt="Cover illustration">
+</div>
+```
+
+### Image Slide (Content)
+
+```html
+<div class="slide slide-image-content">
+    <span class="slide-number">N</span>
+    <div class="content">
+        <img src="assets/diagram.jpg" alt="Diagram">
+    </div>
+</div>
+```
+
 ### Image with Zoom Support
 
 ```html
@@ -1221,6 +1288,11 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
 - Larger images may trigger zoom mode automatically
 - Use `data-focusable` attribute on wrapper to enable focus/zoom
 - Always include `alt` text for accessibility
+
+### Image Slide Modes
+
+- **Fullscreen mode** (`slide-image-fullscreen`): image fills entire slide with `object-fit: cover` — may crop edges. Best for cover photos or section dividers.
+- **Content mode** (`slide-image-content`): image fits within 16:9 content area with `object-fit: contain` — letterboxed if aspect ratio differs. Best for diagrams or screenshots.
 
 ### Example
 ```html

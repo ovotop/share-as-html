@@ -49,11 +49,12 @@
 
         .slide-number {
             position: absolute;
-            top: 24px;
+            bottom: 24px;
             right: 32px;
             font-size: 14px;
             color: var(--text-dim);
             font-family: 'SF Mono', monospace;
+            z-index: 1;
         }
 
         .cover {
@@ -124,21 +125,59 @@
 
         .diagram-focusable.no-focus:hover { border-color: transparent !important; }
 
+        /* ===== Image Slide Layout ===== */
+        .slide-image-fullscreen {
+            /* DOC mode: constrains to content area, inherits slide padding */
+        }
+
+        .slide-image-fullscreen img {
+            max-width: 900px;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .slide-image-content img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
         body.mode-ppt { overflow: hidden; }
 
         body.mode-ppt .slide {
             min-height: 100vh;
-            padding: 60px 80px;
+            padding: 60px 120px;
             border-bottom: 1px solid var(--border);
             scroll-snap-align: start;
             scroll-snap-stop: always;
         }
+
+        body.mode-ppt .slide .content { width: 840px; aspect-ratio: 16 / 9; max-width: none; transform-origin: center center; }
 
         #scroll-container.mode-ppt {
             scroll-snap-type: y proximity;
             overflow-y: scroll;
             overflow-x: auto;
             height: 100vh;
+            scrollbar-gutter: stable;
+        }
+
+        body.mode-ppt .slide-image-fullscreen {
+            min-height: 100vh;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body.mode-ppt .slide-image-fullscreen img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: absolute;
+            top: 0;
+            left: 0;
+            max-width: none;
         }
 
         /* ===== Bounce Animations ===== */
@@ -182,6 +221,13 @@
 
         body.mode-zoom .zoom-content {
             /* No size restrictions — let container scroll */
+        }
+
+        @media (max-width: 768px) {
+            body.mode-ppt .slide { overflow: visible; }
+            body.mode-ppt .slide .content { width: 100%; aspect-ratio: auto; transform: none; }
+            body.mode-ppt .slide-image-fullscreen { min-height: 60vh; }
+            body.mode-ppt .slide-image-fullscreen img { object-fit: contain; }
         }
 
         .keyboard-hint {
@@ -262,6 +308,20 @@
         <h1>Test: Image Zoom</h1>
         <p class="subtitle">Testing image zoom behavior</p>
         <p class="meta">按 Enter 进入 PPT 模式</p>
+    </div>
+</div>
+
+<!-- Image Slide: Fullscreen Cover -->
+<div class="slide slide-image-fullscreen" data-slide="cover">
+    <span class="slide-number">IMG</span>
+    <div class="img-placeholder-large" style="width:100%;height:100%;position:absolute;top:0;left:0;"></div>
+</div>
+
+<!-- Image Slide: Content Mode -->
+<div class="slide slide-image-content" data-slide="content-img">
+    <span class="slide-number">IMG</span>
+    <div class="content">
+        <div class="img-placeholder-small" style="width:100%;height:300px;"></div>
     </div>
 </div>
 
@@ -455,8 +515,14 @@
         });
         
         currentSlideIndex = nearestIndex;
-        slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+        if (container) {
+            const targetTop = slides[nearestIndex].offsetTop - container.offsetTop;
+            container.scrollTop = targetTop;
+        } else {
+            slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+        }
         updateFocus();
+        updateContentScale();
     }
 
     function enterDocMode() {
@@ -465,6 +531,9 @@
         const container = document.getElementById('scroll-container');
         if (container) container.classList.remove('mode-ppt');
         clearFocus();
+        document.querySelectorAll('.slide .content').forEach(function(el) {
+            el.style.transform = '';
+        });
         const slide = document.querySelectorAll('.slide')[currentSlideIndex];
         if (slide) { const target = slide.offsetTop + slide.offsetHeight / 2 - window.innerHeight / 2; window.scrollTo({ top: Math.max(0, target), behavior: 'instant' }); }
     }
@@ -495,21 +564,32 @@
         const slides = document.querySelectorAll('.slide');
         if (slides[currentSlideIndex]) {
         const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
-        window.scrollTo({ top: targetTop, behavior: 'instant' });
+        if (container) {
+            container.scrollTo({ top: targetTop, behavior: 'instant' });
+        } else {
+            window.scrollTo({ top: targetTop, behavior: 'instant' });
+        }
         }
         
         updateFocus(true);
     }
 
     function navigateSlide(direction) {
+        const container = document.getElementById('scroll-container');
         const slides = document.querySelectorAll('.slide');
         const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
         
         if (newIndex !== currentSlideIndex) {
             currentSlideIndex = newIndex;
             isAtScrollBoundary = false;
-            slides[newIndex].scrollIntoView({ behavior: 'instant' });
+            const targetTop = slides[newIndex].offsetTop - (container ? container.offsetTop : 0);
+            if (container) {
+                container.scrollTop = targetTop;
+            } else {
+                slides[newIndex].scrollIntoView({ behavior: 'instant' });
+            }
             updateFocus();
+            updateContentScale();
         }
     }
 
@@ -603,7 +683,7 @@
         const slideBottom = slideTop + slide.offsetHeight;
         
         if (direction > 0) {
-            return containerScrollTop + containerHeight < slideBottom - 10;
+            return containerScrollTop + containerHeight < slideBottom - 30;
         } else {
             return containerScrollTop > slideTop + 10;
         }
@@ -668,7 +748,21 @@
         setTimeout(() => container.classList.remove(bounceClass), 300);
     }
 
+    function updateContentScale() {
+        if (currentState !== 'PPT_FULL') return;
+        if (window.innerWidth <= 768) return;
+        const container = document.getElementById('scroll-container');
+        if (!container) return;
+        const availW = container.clientWidth - 240;
+        const availH = container.clientHeight - 120;
+        const scale = Math.min(availW / 840, availH / 472.5);
+        document.querySelectorAll('.slide .content').forEach(function(el) {
+            el.style.transform = 'scale(' + scale + ')';
+        });
+    }
+
     window.addEventListener('load', () => {
+        window.addEventListener('resize', updateContentScale);
         document.querySelectorAll('.mermaid svg, img').forEach(el => {
             const rect = el.getBoundingClientRect();
             const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;

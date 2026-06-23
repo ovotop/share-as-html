@@ -70,11 +70,12 @@ code, pre { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
 
 .slide-number {
     position: absolute;
-    top: 24px;
+    bottom: 24px;
     right: 32px;
     font-size: 14px;
     color: var(--text-dim);
     font-family: 'SF Mono', monospace;
+    z-index: 1;
 }
 
 .cover {
@@ -366,6 +367,24 @@ img {
     height: auto;
 }
 
+/* ===== Image Slide Layout ===== */
+.slide-image-fullscreen {
+    /* DOC mode: constrains to content area, inherits slide padding */
+}
+
+.slide-image-fullscreen img {
+    max-width: 900px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.slide-image-content img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 /* Diagram Focus State */
 .diagram-focusable {
     cursor: pointer;
@@ -387,6 +406,8 @@ img {
 
 /* Reader narrative (DOC mode only) */
 .reader-narrative {
+    max-width: 900px;
+    width: 100%;
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid var(--border);
@@ -402,22 +423,51 @@ body.mode-ppt { overflow: hidden; }
 
 body.mode-ppt .slide {
     min-height: 100vh;
-    padding: 60px 80px;
+    padding: 60px 120px;
     border-bottom: 1px solid var(--border);
     scroll-snap-align: start;
     scroll-snap-stop: always;
+}
+
+body.mode-ppt .slide .content {
+    width: 840px;
+    max-width: none;
+    align-self: center;
+    margin-top: auto;
+    margin-bottom: auto;
+    transform-origin: center center;
+}
+
+body.mode-ppt .slide.cover {
+    justify-content: center;
     align-items: center;
 }
 
-body.mode-ppt .slide .content { max-width: 1100px; }
-
 body.mode-ppt .reader-narrative { display: none; }
+
+body.mode-ppt .slide-image-fullscreen {
+    min-height: 100vh;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+body.mode-ppt .slide-image-fullscreen img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+}
 
 #scroll-container.mode-ppt {
     scroll-snap-type: y proximity;
     overflow-y: scroll;
     overflow-x: auto;
     height: 100vh;
+    scrollbar-gutter: stable;
 }
 
 /* Bounce Animations */
@@ -465,12 +515,28 @@ body.mode-zoom .zoom-container {
 
 body.mode-zoom .reader-narrative { display: none; }
 
+body.mode-zoom .zoom-content {
+    max-width: calc(var(--zoom-scale, 1) * 100vw);
+    max-height: calc(var(--zoom-scale, 1) * 100vh);
+}
+
+body.mode-zoom .zoom-content.fill {
+    width: calc(var(--zoom-scale, 1) * 100vw);
+    height: calc(var(--zoom-scale, 1) * 100vh);
+    object-fit: cover;
+    max-width: none;
+    max-height: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .slide { padding: 24px 16px; }
-    body.mode-ppt .slide { padding: 40px 20px; }
+    body.mode-ppt .slide { padding: 40px 20px; overflow: visible; }
+    body.mode-ppt .slide .content { width: 100%; aspect-ratio: auto; transform: none; }
     .grid-2, .grid-3, .grid-4, .split-layout { grid-template-columns: 1fr; }
     .flex-row { flex-direction: column; }
+    body.mode-ppt .slide-image-fullscreen { min-height: 60vh; }
+    body.mode-ppt .slide-image-fullscreen img { object-fit: contain; }
 }
 
 @media print {
@@ -495,6 +561,9 @@ let currentSlideIndex = 0;
 let focusedDiagramIndex = -1;
 let isAtScrollBoundary = false;
 let zoomTarget = null;
+let zoomScale = 1.0;
+let zoomFitMode = 'fit';
+const ZOOM_SCALE_STEPS = [1.0, 1.25, 1.5, 2.0, 3.0];
 
 document.addEventListener('keydown', (e) => {
     const slides = document.querySelectorAll('.slide');
@@ -576,6 +645,24 @@ document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 exitZoomMode();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                zoomFitMode = zoomFitMode === 'fit' ? 'fill' : 'fit';
+                applyZoomScale();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                const idx = ZOOM_SCALE_STEPS.indexOf(zoomScale);
+                if (idx < ZOOM_SCALE_STEPS.length - 1) {
+                    zoomScale = ZOOM_SCALE_STEPS[idx + 1];
+                    applyZoomScale();
+                }
+            } else if (e.key === '-') {
+                e.preventDefault();
+                const idx = ZOOM_SCALE_STEPS.indexOf(zoomScale);
+                if (idx > 0) {
+                    zoomScale = ZOOM_SCALE_STEPS[idx - 1];
+                    applyZoomScale();
+                }
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
                 scrollZoomContainer('left');
@@ -623,8 +710,14 @@ function enterPPTMode() {
     });
 
     currentSlideIndex = nearestIndex;
-    slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+    if (container) {
+        const targetTop = slides[nearestIndex].offsetTop - container.offsetTop;
+        container.scrollTop = targetTop;
+    } else {
+        slides[nearestIndex].scrollIntoView({ behavior: 'instant' });
+    }
     updateFocus();
+    updateContentScale();
 }
 
 function enterDocMode() {
@@ -633,6 +726,9 @@ function enterDocMode() {
     const container = document.getElementById('scroll-container');
     if (container) container.classList.remove('mode-ppt');
     clearFocus();
+    document.querySelectorAll('.slide .content').forEach(function(el) {
+        el.style.transform = '';
+    });
 
     const slide = document.querySelectorAll('.slide')[currentSlideIndex];
     if (slide) {
@@ -644,6 +740,8 @@ function enterDocMode() {
 function enterZoomMode(element) {
     currentState = 'PPT_ZOOM';
     zoomTarget = element;
+    zoomScale = 1.0;
+    zoomFitMode = 'fit';
     document.body.className = 'mode-zoom';
 
     const container = document.createElement('div');
@@ -652,6 +750,7 @@ function enterZoomMode(element) {
     clone.classList.add('zoom-content');
     container.appendChild(clone);
     document.body.appendChild(container);
+    applyZoomScale();
 }
 
 function exitZoomMode() {
@@ -667,21 +766,32 @@ function exitZoomMode() {
     const slides = document.querySelectorAll('.slide');
     if (slides[currentSlideIndex]) {
         const targetTop = slides[currentSlideIndex].offsetTop - (container ? container.offsetTop : 0);
-        window.scrollTo({ top: targetTop, behavior: 'instant' });
+        if (container) {
+            container.scrollTo({ top: targetTop, behavior: 'instant' });
+        } else {
+            window.scrollTo({ top: targetTop, behavior: 'instant' });
+        }
     }
 
     updateFocus(true);
 }
 
 function navigateSlide(direction) {
+    const container = document.getElementById('scroll-container');
     const slides = document.querySelectorAll('.slide');
     const newIndex = Math.max(0, Math.min(slides.length - 1, currentSlideIndex + direction));
 
     if (newIndex !== currentSlideIndex) {
         currentSlideIndex = newIndex;
         isAtScrollBoundary = false;
-        slides[newIndex].scrollIntoView({ behavior: 'instant' });
+        const targetTop = slides[newIndex].offsetTop - (container ? container.offsetTop : 0);
+        if (container) {
+            container.scrollTop = targetTop;
+        } else {
+            slides[newIndex].scrollIntoView({ behavior: 'instant' });
+        }
         updateFocus();
+        updateContentScale();
     }
 }
 
@@ -760,6 +870,13 @@ function scrollZoomContainer(direction) {
     return false;
 }
 
+function applyZoomScale() {
+    const el = document.querySelector('.zoom-content');
+    if (!el) return;
+    el.style.setProperty('--zoom-scale', zoomScale);
+    el.classList.toggle('fill', zoomFitMode === 'fill');
+}
+
 function canScrollVertically(direction) {
     const container = document.getElementById('scroll-container');
     if (!container) return false;
@@ -773,7 +890,7 @@ function canScrollVertically(direction) {
     const slideBottom = slideTop + slide.offsetHeight;
 
     if (direction > 0) {
-        return containerScrollTop + containerHeight < slideBottom - 10;
+        return containerScrollTop + containerHeight < slideBottom - 30;
     } else {
         return containerScrollTop > slideTop + 10;
     }
@@ -841,7 +958,21 @@ function triggerBounce(direction, axis) {
     setTimeout(function() { container.classList.remove(bounceClass); }, 300);
 }
 
+function updateContentScale() {
+    if (currentState !== 'PPT_FULL') return;
+    if (window.innerWidth <= 768) return;
+    const container = document.getElementById('scroll-container');
+    if (!container) return;
+    const availW = container.clientWidth - 240;
+    const availH = container.clientHeight - 120;
+    const scale = Math.min(availW / 840, availH / 472.5);
+    document.querySelectorAll('.slide .content').forEach(function(el) {
+        el.style.transform = 'scale(' + scale + ')';
+    });
+}
+
 window.addEventListener('load', function() {
+    window.addEventListener('resize', updateContentScale);
     document.querySelectorAll('.mermaid svg, img').forEach(function(el) {
         const rect = el.getBoundingClientRect();
         const needsZoom = rect.width > window.innerWidth || rect.height > window.innerHeight;
@@ -869,9 +1000,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
     <div id="scroll-container">
 {% for slide in slides %}
+{% if slide.layout_type == 'image' and slide.image_mode == 'fullscreen' %}
+        <div class="slide slide-image-fullscreen" data-slide="{{ slide.number }}">
+{% if slide.number %}
+            <span class="slide-number">{% if slide.number is number %}{{ '%02d'|format(slide.number) }}{% else %}{{ slide.number }}{% endif %}</span>
+{% endif %}
+            <img src="{{ slide.image_src or 'assets/placeholder.jpg' }}" alt="{{ slide.image_alt }}">
+{% if slide.reader_html %}
+            <div class="reader-narrative">
+{{ slide.reader_html | indent(16, first=True) }}
+            </div>
+{% endif %}
+        </div>
+{% elif slide.layout_type == 'image' and slide.image_mode == 'content' %}
+        <div class="slide slide-image-content" data-slide="{{ slide.number }}">
+{% if slide.number %}
+            <span class="slide-number">{% if slide.number is number %}{{ '%02d'|format(slide.number) }}{% else %}{{ slide.number }}{% endif %}</span>
+{% endif %}
+            <div class="content">
+                <img src="{{ slide.image_src or 'assets/placeholder.jpg' }}" alt="{{ slide.image_alt }}">
+            </div>
+{% if slide.reader_html %}
+            <div class="reader-narrative">
+{{ slide.reader_html | indent(16, first=True) }}
+            </div>
+{% endif %}
+        </div>
+{% else %}
         <div class="slide {{ 'cover' if slide.is_cover else '' }}" data-slide="{{ slide.number }}">
 {% if slide.number %}
-            <span class="slide-number">{{ '%02d'|format(slide.number) }}</span>
+            <span class="slide-number">{% if slide.number is number %}{{ '%02d'|format(slide.number) }}{% else %}{{ slide.number }}{% endif %}</span>
+{% endif %}
+{% if slide.heading_html and not slide.is_cover %}
+{{ slide.heading_html | indent(12, first=True) }}
 {% endif %}
             <div class="content">
 {{ slide.visual_html | indent(16, first=True) }}
@@ -882,6 +1043,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
 {% endif %}
         </div>
+{% endif %}
 {% endfor %}
         <div class="doc-footer">
             <a href="https://github.com/ovotop/share-as-html" target="_blank" rel="noopener">
@@ -905,24 +1067,38 @@ class Slide:
 
     __slots__ = (
         "number", "duration", "emoji",
-        "visual_html", "reader_html", "is_cover",
+        "heading_html", "visual_html", "reader_html", "is_cover",
+        "layout_type", "image_mode", "image_src", "image_alt",
     )
 
-    def __init__(self, frontmatter: dict[str, Any], visual_html: str, reader_html: str = ""):
-        self.number: int = frontmatter.get("slide", 0)
+    def __init__(self, frontmatter: dict[str, Any], visual_html: str,
+                 reader_html: str = "", heading_html: str = "",
+                 layout_type: str = "", image_mode: str = "",
+                 image_src: str = "", image_alt: str = ""):
+        self.number = frontmatter.get("slide", 0)
         self.duration: str = frontmatter.get("duration", "")
         self.emoji: str = frontmatter.get("emoji", "")
+        self.heading_html: str = heading_html
         self.visual_html: str = visual_html
         self.reader_html: str = reader_html
         self.is_cover: bool = (self.number == 1)
+        self.layout_type: str = layout_type
+        self.image_mode: str = image_mode
+        self.image_src: str = image_src
+        self.image_alt: str = image_alt
 
     def to_dict(self) -> dict[str, Any]:
         """Return slide data for Jinja2 template rendering."""
         return {
             "number": self.number,
+            "heading_html": self.heading_html,
             "visual_html": self.visual_html,
             "reader_html": self.reader_html,
             "is_cover": self.is_cover,
+            "layout_type": self.layout_type,
+            "image_mode": self.image_mode,
+            "image_src": self.image_src,
+            "image_alt": self.image_alt,
         }
 
 
@@ -971,6 +1147,7 @@ def parse_meta(filepath: str) -> dict[str, Any]:
         "date": fm.get("date", ""),
         "target_duration": fm.get("target_duration", ""),
         "theme": fm.get("theme", "dark"),
+        "ppt_scale": fm.get("ppt_scale", 2),
     }
 
 
@@ -1013,8 +1190,8 @@ def split_visual_reader(html: str) -> tuple[str, str]:
     if not match:
         return html, ""
 
-    # Everything before the reader block is visual
-    visual = html[: match.start()].strip()
+    # Everything before and after the reader block is visual
+    visual = html[: match.start()].strip() + "\n" + html[match.end() :].strip()
     # The reader block content
     reader = match.group(1).strip()
 
@@ -1104,7 +1281,6 @@ def split_heading_and_slots(body: str, N_cells: int) -> tuple[str, list[str]]:
 def assemble_grid(
     grid: list[list[dict]],
     slots: list[str],
-    heading_html: str,
     md_converter: Any,
     ratio: str = "",
 ) -> str:
@@ -1112,6 +1288,7 @@ def assemble_grid(
 
     Each cell gets its slot content converted through markdown,
     wrapped in the appropriate container, and grouped into grid-N rows.
+    Returns only body content (heading is handled separately).
     """
     # Flatten cells in row-major order
     cells: list[dict] = []
@@ -1125,8 +1302,8 @@ def assemble_grid(
             full_md_clean, m_blocks = extract_mermaid_blocks(full_md)
             full_html = md_converter.convert(full_md_clean)
             full_html = restore_mermaid_blocks(full_html, m_blocks)
-            return heading_html + full_html
-        return heading_html
+            return full_html
+        return ""
 
     # Convert each slot through markdown and wrap in cell container
     result_parts: list[str] = []
@@ -1207,7 +1384,7 @@ def assemble_grid(
         else:
             result += row_cells[0]
 
-    return heading_html + result
+    return result
 
 
 def extract_mermaid_blocks(md_text: str) -> tuple[str, list[str]]:
@@ -1270,6 +1447,39 @@ def parse_slide(filepath: str) -> Optional[Slide]:
         )
         sys.exit(1)
 
+    if isinstance(layout, dict) and "image" in layout:
+        if "grid" in layout:
+            print(
+                f"Error: {filepath}: layout cannot have both 'image' and 'grid' keys.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        img_cfg = layout["image"]
+        src = img_cfg.get("src", "")
+        alt = img_cfg.get("alt", "")
+        mode = img_cfg.get("mode", "content")
+
+        if not alt:
+            print(
+                f"Error: {filepath}: layout.image must have an 'alt' text field.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        img_html = f'<img src="{src}" alt="{alt}">'
+        visual_html, reader_html = split_visual_reader(img_html)
+
+        return Slide(
+            frontmatter=fm,
+            visual_html=visual_html,
+            reader_html=reader_html,
+            layout_type="image",
+            image_mode=mode,
+            image_src=src,
+            image_alt=alt,
+        )
+
     # Parse YAML grid
     if isinstance(layout, dict) and "grid" in layout:
         grid = layout["grid"]
@@ -1293,7 +1503,7 @@ def parse_slide(filepath: str) -> Optional[Slide]:
 
     # Assemble grid with per-slot markdown conversion
     grid_ratio = layout.get("ratio", "") if isinstance(layout, dict) else ""
-    visual_html = assemble_grid(grid, slots, heading_html, md, grid_ratio)
+    visual_html = assemble_grid(grid, slots, md, grid_ratio)
 
     # Split visual/reader layers
     visual_html, reader_html = split_visual_reader(visual_html)
@@ -1302,6 +1512,7 @@ def parse_slide(filepath: str) -> Optional[Slide]:
         frontmatter=fm,
         visual_html=visual_html,
         reader_html=reader_html,
+        heading_html=heading_html,
     )
 
 
@@ -1328,11 +1539,20 @@ def render_html(
 
     slide_dicts = [s.to_dict() for s in slides]
 
+    ppt_scale = meta.get("ppt_scale", 2)
+    ideal_w = 1680 / ppt_scale
+    ideal_h = 945 / ppt_scale
+    css = CSS_TEMPLATE.strip().replace("width: 840px", f"width: {ideal_w:g}px")
+    js = JS_TEMPLATE.strip().replace(
+        "availW / 840, availH / 472.5",
+        f"availW / {ideal_w:g}, availH / {ideal_h:g}"
+    )
+
     return template.render(
         slides=slide_dicts,
         meta=meta,
-        css=CSS_TEMPLATE.strip(),
-        js=JS_TEMPLATE.strip(),
+        css=css,
+        js=js,
         override_css=override_css.strip() if override_css else None,
     )
 

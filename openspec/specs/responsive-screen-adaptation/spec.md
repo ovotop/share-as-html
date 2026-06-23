@@ -45,14 +45,22 @@ All heading and body text SHALL use CSS `clamp()` for font-size to scale smoothl
 - **WHEN** the page is viewed on a 1024px-wide tablet
 - **THEN** h2 SHALL render at approximately 36px (4vw × 1024 ≈ 41px, capped at MAX 36px)
 
-### Requirement: PPT mode wider content
+### Requirement: PPT mode transform scaling
 
-In PPT mode, the `.content` element SHALL have `max-width: 1100px` instead of the default `900px`, allowing wider content that is easier to read from a distance.
+In PPT mode, the `.content` element SHALL use a fixed ideal layout size of `width: 1680px` with `aspect-ratio: 16 / 9` (resulting height: 945px) and `transform-origin: center center`. JavaScript SHALL compute and apply `transform: scale()` based on available viewport dimensions, proportionally scaling content while preserving layout proportions. The slide SHALL have `padding: 60px 120px` and `overflow: hidden`.
 
 #### Scenario: PPT mode on wide display
 
-- **WHEN** the page is in PPT mode on a display wider than 1100px
-- **THEN** slide content SHALL be 1100px wide, centered horizontally
+- **WHEN** the page is in PPT mode on a display wider than 768px
+- **THEN** slide content SHALL be proportionally scaled to fill the available space while maintaining 16:9 layout proportions
+- **AND** the slide SHALL have 120px left and right padding
+
+#### Scenario: PPT mode on mobile display
+
+- **WHEN** the page is in PPT mode on a display 768px or narrower
+- **THEN** transform scaling SHALL be disabled
+- **AND** `.content` SHALL use `width: 100%; aspect-ratio: auto; transform: none`
+- **AND** slide padding SHALL be reduced to `40px 20px` with `overflow: visible`
 
 #### Scenario: DOC mode max-width unchanged
 

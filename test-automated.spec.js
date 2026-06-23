@@ -627,5 +627,183 @@ for (const FILE of HTML_FILES) {
             await expect(link).toHaveAttribute('target', '_blank');
             await expect(link).toHaveAttribute('rel', 'noopener');
         });
+
+        test('Exit zoom scrolls to correct slide position', async ({ page }) => {
+            await enterPPT(page);
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            if (totalSlides < 2) return;
+
+            // Navigate to slide 2 (index 1) and find a zoomable diagram
+            for (let i = 1; i < totalSlides; i++) {
+                await goToSlide(page, i);
+                const hasFocusable = await page.evaluate(() => {
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide && slide.querySelectorAll('.diagram-focusable:not(.no-focus)').length > 0;
+                });
+                if (!hasFocusable) continue;
+
+                // Record expected scroll position of current slide
+                const expectedTop = await page.evaluate(() => {
+                    const container = document.getElementById('scroll-container');
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide ? slide.offsetTop - container.offsetTop : 0;
+                });
+
+                // Enter zoom then exit
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(300);
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(500);
+
+                // Verify scroll position is at the correct slide (±5px tolerance)
+                const actualScrollTop = await page.evaluate(() => {
+                    const container = document.getElementById('scroll-container');
+                    return container ? container.scrollTop : 0;
+                });
+                expect(Math.abs(actualScrollTop - expectedTop)).toBeLessThan(10);
+                break;
+            }
+        });
+
+        test('Navigation scrolls container with snap', async ({ page }) => {
+            await enterPPT(page);
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            if (totalSlides < 2) return;
+
+            // Navigate to slide 2
+            await page.keyboard.press('ArrowDown');
+            await page.waitForTimeout(600);
+
+            // Verify scroll position changed
+            const scrollTop = await page.evaluate(() => {
+                const container = document.getElementById('scroll-container');
+                return container ? container.scrollTop : 0;
+            });
+            expect(scrollTop).toBeGreaterThan(0);
+
+            // Verify currentSlideIndex is 1
+            const index = await getCurrentSlideIndex(page);
+            expect(index).toBe(1);
+
+            // Verify scroll position matches slide 2's offset (±10px)
+            const expectedTop = await page.evaluate(() => {
+                const container = document.getElementById('scroll-container');
+                const slide = document.querySelectorAll('.slide')[1];
+                return slide ? slide.offsetTop - container.offsetTop : 0;
+            });
+            expect(Math.abs(scrollTop - expectedTop)).toBeLessThan(10);
+        });
     });
 }
+
+test.describe('test-image-zoom (Image Slides)', () => {
+
+    test.beforeEach(async ({ page }) => {
+        await page.goto(`${BASE_PATH}test-image-zoom.html`);
+        await page.waitForTimeout(500);
+        await waitForMermaid(page);
+    });
+
+    test('6.1: Fullscreen image slide renders in DOC mode', async ({ page }) => {
+        const fullscreenSlide = page.locator('.slide-image-fullscreen');
+        await expect(fullscreenSlide).toHaveCount(1);
+
+        const minHeight = await page.$eval('.slide-image-fullscreen', el =>
+            parseFloat(getComputedStyle(el).minHeight)
+        );
+        const viewportHeight = await page.evaluate(() => window.innerHeight);
+        expect(minHeight).toBeGreaterThanOrEqual(viewportHeight - 10);
+
+        const placeholder = page.locator('.slide-image-fullscreen .img-placeholder-large');
+        await expect(placeholder).toHaveCount(1);
+    });
+
+    test('6.2: Fullscreen image slide fills viewport in PPT mode', async ({ page }) => {
+        await enterPPT(page);
+        expect(await getBodyClass(page)).toContain('mode-ppt');
+
+        // Fullscreen image slide is at index 1
+        await goToSlide(page, 1);
+
+        const slideHeight = await page.$eval('.slide-image-fullscreen', el => el.offsetHeight);
+        const viewportHeight = await page.evaluate(() => window.innerHeight);
+        expect(Math.abs(slideHeight - viewportHeight)).toBeLessThan(10);
+    });
+
+    test('6.3: Content-mode image slide constrained to content area', async ({ page }) => {
+        const contentSlide = page.locator('.slide-image-content');
+        await expect(contentSlide).toHaveCount(1);
+
+        const contentWrapper = page.locator('.slide-image-content .content');
+        await expect(contentWrapper).toHaveCount(1);
+
+        const maxWidth = await page.$eval('.slide-image-content .content', el =>
+            getComputedStyle(el).maxWidth
+        );
+        expect(maxWidth).toBe('900px');
+    });
+
+    test('6.4: Image slide has no focusable diagrams', async ({ page }) => {
+        await enterPPT(page);
+
+        // Navigate to fullscreen image slide (index 1)
+        await goToSlide(page, 1);
+
+        const focusedCount = await page.evaluate(() =>
+            document.querySelectorAll('.diagram-focusable.focused').length
+        );
+        expect(focusedCount).toBe(0);
+
+        // Press Enter — assert no zoom container appears
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(300);
+
+        const zoomExists = await page.evaluate(() =>
+            document.querySelector('.zoom-container') !== null
+        );
+        expect(zoomExists).toBe(false);
+    });
+
+    test('6.5: Image slide ArrowDown/Up navigates to next/prev slide', async ({ page }) => {
+        await enterPPT(page);
+
+        // Navigate to fullscreen image slide (index 1)
+        await goToSlide(page, 1);
+
+        await page.keyboard.press('ArrowDown');
+        await page.waitForTimeout(400);
+        let slideIndex = await getCurrentSlideIndex(page);
+        expect(slideIndex).toBe(2);
+
+        await page.keyboard.press('ArrowUp');
+        await page.waitForTimeout(400);
+        slideIndex = await getCurrentSlideIndex(page);
+        expect(slideIndex).toBe(1);
+    });
+
+    test('6.6: Mobile viewport image slide uses object-fit: contain', async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 667 });
+        await page.waitForTimeout(200);
+
+        // Assert .slide-image-fullscreen has min-height: 60vh on mobile
+        const minHeight = await page.$eval('.slide-image-fullscreen', el =>
+            parseFloat(getComputedStyle(el).minHeight)
+        );
+        const expected60vh = await page.evaluate(() => window.innerHeight * 0.6);
+        expect(Math.abs(minHeight - expected60vh)).toBeLessThan(5);
+
+        // Insert a temporary img to test the CSS object-fit rule
+        await page.evaluate(() => {
+            const img = document.createElement('img');
+            img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
+            img.setAttribute('data-test-img', 'true');
+            const slide = document.querySelector('.slide-image-fullscreen');
+            slide.appendChild(img);
+        });
+
+        const objectFit = await page.$eval('.slide-image-fullscreen img[data-test-img]', el =>
+            getComputedStyle(el).objectFit
+        );
+        expect(objectFit).toBe('contain');
+    });
+});

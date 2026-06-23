@@ -8,6 +8,7 @@ conversations/
 
 # 临时文件
 tmp/
+test/
 
 # python
 **/*.pyc
