@@ -54,7 +54,8 @@
         
         body.mode-ppt { overflow: hidden; }
         body.mode-ppt .slide { min-height: 100vh; padding: 60px 120px; border-bottom: 1px solid var(--border); scroll-snap-align: start; scroll-snap-stop: always; }
-        body.mode-ppt .slide .content { width: 840px; aspect-ratio: 16 / 9; max-width: none; transform-origin: center center; }
+        body.mode-ppt .slide .content { width: 840px; max-width: none; align-self: center; margin-top: auto; margin-bottom: auto; transform-origin: center center; }
+        body.mode-ppt .slide.cover { justify-content: center; align-items: center; }
         #scroll-container.mode-ppt { scroll-snap-type: y proximity; overflow-y: scroll; overflow-x: auto; height: 100vh; scrollbar-gutter: stable; }
         
         body.mode-ppt .slide-image-fullscreen {
@@ -98,6 +99,11 @@
         #scroll-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
         #scroll-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
         #scroll-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
+
+body.mode-zoom .zoom-container.bounce-down { animation: slide-bounce-down 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
         
         body.mode-zoom .slide { display: none; }
         body.mode-zoom .zoom-container {
@@ -263,6 +269,9 @@ let currentSlideIndex = 0;
 let focusedDiagramIndex = -1;
 let isAtScrollBoundary = false;
 let zoomTarget = null;
+let zoomScale = 1.0;
+let scaleLine = [1.0, 1.25, 1.5, 2.0, 3.0];
+let fillStepScale = 2.0;
 
 // ===== Keyboard Handler =====
 document.addEventListener('keydown', (e) => {
@@ -345,23 +354,47 @@ document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 exitZoomMode();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (zoomScale === 1.0) {
+                    zoomScale = fillStepScale;
+                } else {
+                    zoomScale = 1.0;
+                }
+                applyZoomScale();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                const idx = scaleLine.indexOf(zoomScale);
+                if (idx >= 0 && idx < scaleLine.length - 1) {
+                    zoomScale = scaleLine[idx + 1];
+                    applyZoomScale();
+                }
+            } else if (e.key === '-') {
+                e.preventDefault();
+                const idx = scaleLine.indexOf(zoomScale);
+                if (idx > 0) {
+                    zoomScale = scaleLine[idx - 1];
+                    applyZoomScale();
+                }
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
-                scrollZoomContainer('left');
+                if (!scrollZoomContainer('left')) {
+                    triggerZoomBounce('left');
+                }
             } else if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                scrollZoomContainer('right');
+                if (!scrollZoomContainer('right')) {
+                    triggerZoomBounce('right');
+                }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 if (!scrollZoomContainer('up')) {
-                    exitZoomMode();
-                    navigateSlide(-1);
+                    triggerZoomBounce('up');
                 }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 if (!scrollZoomContainer('down')) {
-                    exitZoomMode();
-                    navigateSlide(1);
+                    triggerZoomBounce('down');
                 }
             }
             break;
@@ -419,6 +452,7 @@ function enterDocMode() {
 function enterZoomMode(element) {
     currentState = 'PPT_ZOOM';
     zoomTarget = element;
+    zoomScale = 1.0;
     document.body.className = 'mode-zoom';
     
     const container = document.createElement('div');
@@ -427,6 +461,33 @@ function enterZoomMode(element) {
     clone.classList.add('zoom-content');
     container.appendChild(clone);
     document.body.appendChild(container);
+
+    // Wait for layout then compute dynamic scale line
+    requestAnimationFrame(function() {
+        var rect = clone.getBoundingClientRect();
+        var natW = rect.width;
+        var natH = rect.height;
+
+        if (natW === 0 || natH === 0) {
+            var origRect = element.getBoundingClientRect();
+            natW = origRect.width || element.naturalWidth || 100;
+            natH = origRect.height || element.naturalHeight || 100;
+        }
+
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var fillX = Math.max(vw / natW, vh / natH);
+        fillX = Math.max(1.25, Math.min(3.0, fillX));
+        fillStepScale = fillX;
+
+        var base = [1.0, 1.25, 1.5, 2.0, 3.0];
+        var sorted = base.concat([fillX]).sort(function(a, b) { return a - b; });
+        scaleLine = sorted.filter(function(x, i, arr) {
+            return i === 0 || Math.abs(x - arr[i - 1]) > 0.01;
+        });
+
+        applyZoomScale();
+    });
 }
 
 function exitZoomMode() {
@@ -527,21 +588,22 @@ function scrollZoomContainer(direction) {
     if (!container) return false;
     
     const scrollAmount = 100;
-    const { scrollTop, scrollLeft, scrollHeight, scrollWidth, clientHeight, clientWidth } = container;
     
     switch(direction) {
         case 'up':
-            if (scrollTop <= 0) return false;
+            if (container.scrollTop <= 0) return false;
             container.scrollTop -= scrollAmount;
             return true;
         case 'down':
-            if (scrollTop + clientHeight >= scrollHeight) return false;
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight) return false;
             container.scrollTop += scrollAmount;
             return true;
         case 'left':
+            if (container.scrollLeft <= 0) return false;
             container.scrollLeft -= scrollAmount;
             return true;
         case 'right':
+            if (container.scrollLeft + container.clientWidth >= container.scrollWidth) return false;
             container.scrollLeft += scrollAmount;
             return true;
     }
@@ -658,7 +720,22 @@ Object.defineProperty(window, 'currentState', { get: () => currentState });
 Object.defineProperty(window, 'currentSlideIndex', { get: () => currentSlideIndex });
 Object.defineProperty(window, 'focusedDiagramIndex', { get: () => focusedDiagramIndex });
 Object.defineProperty(window, 'isAtScrollBoundary', { get: () => isAtScrollBoundary });
-</script>
 
-</body>
-</html>
+
+
+function applyZoomScale() {
+    const el = document.querySelector('.zoom-content');
+    if (!el) return;
+    el.style.setProperty('--zoom-scale', zoomScale);
+    el.classList.toggle('fill', zoomScale >= fillStepScale);
+}
+
+function triggerZoomBounce(direction) {
+    const container = document.querySelector('.zoom-container');
+    if (!container) return;
+    container.classList.add('bounce-' + direction);
+    setTimeout(function() {
+        container.classList.remove('bounce-' + direction);
+    }, 300);
+}
+</script>

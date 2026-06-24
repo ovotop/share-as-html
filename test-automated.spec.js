@@ -693,6 +693,284 @@ for (const FILE of HTML_FILES) {
             });
             expect(Math.abs(scrollTop - expectedTop)).toBeLessThan(10);
         });
+
+        // --- Zoom Scale Control Tests ---
+
+        test('Zoom: Arrow keys never exit zoom, bounce at boundaries', async ({ page }) => {
+            if (FILE === 'test-image-zoom.html') return;
+            await enterPPT(page);
+
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            let tested = false;
+
+            for (let i = 0; i < totalSlides; i++) {
+                await goToSlide(page, i);
+                const hasFocusable = await page.evaluate(() => {
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide && slide.querySelectorAll('.diagram-focusable:not(.no-focus)').length > 0;
+                });
+                if (!hasFocusable) continue;
+
+                // Ensure a diagram is focused before zooming in
+                const focused = await getFocusedDiagramIndex(page);
+                if (focused < 0) {
+                    await page.keyboard.press('ArrowRight');
+                    await page.waitForTimeout(200);
+                }
+
+                const slideBefore = await getCurrentSlideIndex(page);
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(500);
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                // At 1.0x fit, ArrowDown should bounce (not exit zoom)
+                await page.keyboard.press('ArrowDown');
+                await page.waitForTimeout(200);
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                await page.keyboard.press('ArrowUp');
+                await page.waitForTimeout(200);
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                await page.keyboard.press('ArrowLeft');
+                await page.waitForTimeout(200);
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                await page.keyboard.press('ArrowRight');
+                await page.waitForTimeout(200);
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                // Exit zoom, verify slide didn't change
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                expect(await getBodyClass(page)).toContain('mode-ppt');
+                expect(await getCurrentSlideIndex(page)).toBe(slideBefore);
+
+                tested = true;
+                break;
+            }
+
+            if (!tested) {
+                console.warn('No focusable slide found for zoom boundary test in ' + FILE);
+            }
+        });
+
+        test('Zoom: + key steps zoom scale through scale line', async ({ page }) => {
+            if (FILE === 'test-image-zoom.html') return;
+            await enterPPT(page);
+
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            let tested = false;
+
+            for (let i = 0; i < totalSlides; i++) {
+                await goToSlide(page, i);
+                const hasFocusable = await page.evaluate(() => {
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide && slide.querySelectorAll('.diagram-focusable:not(.no-focus)').length > 0;
+                });
+                if (!hasFocusable) continue;
+
+                // Ensure a diagram is focused before zooming in
+                const focused = await getFocusedDiagramIndex(page);
+                if (focused < 0) {
+                    await page.keyboard.press('ArrowRight');
+                    await page.waitForTimeout(200);
+                }
+
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(500); // wait for RAF + scale line construction
+                expect(await getBodyClass(page)).toContain('mode-zoom');
+
+                // Read initial scale (should be 1.0)
+                const scale0 = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scale0).toBe(1.0);
+
+                // Press +, scale should increase
+                await page.keyboard.press('+');
+                await page.waitForTimeout(100);
+                const scale1 = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scale1).toBeGreaterThan(1.0);
+
+                // Press - to go back
+                await page.keyboard.press('-');
+                await page.waitForTimeout(100);
+                const scale2 = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scale2).toBe(1.0);
+
+                // - at floor stays at 1.0
+                await page.keyboard.press('-');
+                await page.waitForTimeout(100);
+                const scale3 = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scale3).toBe(1.0);
+
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                tested = true;
+                break;
+            }
+
+            if (!tested) {
+                console.warn('No focusable slide found for zoom +/- test in ' + FILE);
+            }
+        });
+
+        test('Zoom: Enter toggles between fit(1.0) and fillStep', async ({ page }) => {
+            if (FILE === 'test-image-zoom.html') return;
+            await enterPPT(page);
+
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            let tested = false;
+
+            for (let i = 0; i < totalSlides; i++) {
+                await goToSlide(page, i);
+                const hasFocusable = await page.evaluate(() => {
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide && slide.querySelectorAll('.diagram-focusable:not(.no-focus)').length > 0;
+                });
+                if (!hasFocusable) continue;
+
+                // Ensure a diagram is focused before zooming in
+                const focused0 = await getFocusedDiagramIndex(page);
+                if (focused0 < 0) {
+                    await page.keyboard.press('ArrowRight');
+                    await page.waitForTimeout(200);
+                }
+
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(500);
+
+                // Initially at 1.0 fit — no fill class
+                let hasFill = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    return el ? el.classList.contains('fill') : false;
+                });
+                expect(hasFill).toBe(false);
+
+                // Enter → should jump to fillStep and gain .fill class
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(100);
+                hasFill = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    return el ? el.classList.contains('fill') : false;
+                });
+                expect(hasFill).toBe(true);
+
+                const scaleAtFill = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scaleAtFill).toBeGreaterThan(1.0);
+
+                // Enter again → should jump back to 1.0, lose fill class
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(100);
+                hasFill = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    return el ? el.classList.contains('fill') : false;
+                });
+                expect(hasFill).toBe(false);
+
+                const scaleAfter = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scaleAfter).toBe(1.0);
+
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                tested = true;
+                break;
+            }
+
+            if (!tested) {
+                console.warn('No focusable slide found for zoom Enter toggle test in ' + FILE);
+            }
+        });
+
+        test('Zoom: State resets to 1.0 fit on re-enter', async ({ page }) => {
+            if (FILE === 'test-image-zoom.html') return;
+            await enterPPT(page);
+
+            const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length);
+            let tested = false;
+
+            for (let i = 0; i < totalSlides; i++) {
+                await goToSlide(page, i);
+                const hasFocusable = await page.evaluate(() => {
+                    const slide = document.querySelectorAll('.slide')[window.currentSlideIndex];
+                    return slide && slide.querySelectorAll('.diagram-focusable:not(.no-focus)').length > 0;
+                });
+                if (!hasFocusable) continue;
+
+                // Ensure a diagram is focused before zooming in
+                const focused = await getFocusedDiagramIndex(page);
+                if (focused < 0) {
+                    await page.keyboard.press('ArrowRight');
+                    await page.waitForTimeout(200);
+                }
+
+                // Enter zoom, scale up to fill
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(500);
+                await page.keyboard.press('Enter'); // jump to fillStep
+                await page.waitForTimeout(100);
+
+                // Exit zoom
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                expect(await getBodyClass(page)).toContain('mode-ppt');
+
+                // Re-enter zoom — should be back at 1.0 fit
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(500);
+                const hasFill = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    return el ? el.classList.contains('fill') : false;
+                });
+                expect(hasFill).toBe(false);
+
+                const scale = await page.evaluate(() => {
+                    const el = document.querySelector('.zoom-content');
+                    if (!el) return null;
+                    const v = getComputedStyle(el).getPropertyValue('--zoom-scale');
+                    return v ? parseFloat(v.trim()) : null;
+                });
+                expect(scale).toBe(1.0);
+
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                tested = true;
+                break;
+            }
+
+            if (!tested) {
+                console.warn('No focusable slide found for zoom reset test in ' + FILE);
+            }
+        });
     });
 }
 

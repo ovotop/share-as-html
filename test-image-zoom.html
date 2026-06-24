@@ -153,7 +153,8 @@
             scroll-snap-stop: always;
         }
 
-        body.mode-ppt .slide .content { width: 840px; aspect-ratio: 16 / 9; max-width: none; transform-origin: center center; }
+        body.mode-ppt .slide .content { width: 840px; max-width: none; align-self: center; margin-top: auto; margin-bottom: auto; transform-origin: center center; }
+        body.mode-ppt .slide.cover { justify-content: center; align-items: center; }
 
         #scroll-container.mode-ppt {
             scroll-snap-type: y proximity;
@@ -205,6 +206,11 @@
         #scroll-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
         #scroll-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
         #scroll-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
+
+body.mode-zoom .zoom-container.bounce-down { animation: slide-bounce-down 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-up { animation: slide-bounce-up 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-left { animation: slide-bounce-left 0.3s ease-out; }
+body.mode-zoom .zoom-container.bounce-right { animation: slide-bounce-right 0.3s ease-out; }
 
         body.mode-zoom .slide { display: none; }
 
@@ -370,9 +376,13 @@
     <kbd>Enter</kbd> PPT · <kbd>Esc</kbd> Doc · <kbd>↑↓</kbd> Scroll/翻页 · <kbd>←→</kbd> Scroll/切换焦点
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js">
+
+</script>
 <script>
     mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+
+
 </script>
 
 <script>
@@ -381,6 +391,9 @@
     let focusedDiagramIndex = -1;
     let isAtScrollBoundary = false;
     let zoomTarget = null;
+let zoomScale = 1.0;
+let scaleLine = [1.0, 1.25, 1.5, 2.0, 3.0];
+let fillStepScale = 2.0;
 
     // Expose state to window for testing
     Object.defineProperty(window, 'currentState', { get: () => currentState });
@@ -772,7 +785,22 @@
             }
         });
     });
-</script>
 
-</body>
-</html>
+
+
+function applyZoomScale() {
+    const el = document.querySelector('.zoom-content');
+    if (!el) return;
+    el.style.setProperty('--zoom-scale', zoomScale);
+    el.classList.toggle('fill', zoomScale >= fillStepScale);
+}
+
+function triggerZoomBounce(direction) {
+    const container = document.querySelector('.zoom-container');
+    if (!container) return;
+    container.classList.add('bounce-' + direction);
+    setTimeout(function() {
+        container.classList.remove('bounce-' + direction);
+    }, 300);
+}
+</script>

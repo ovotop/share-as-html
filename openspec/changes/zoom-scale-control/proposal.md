@@ -1,21 +1,22 @@
 ## Why
 
-PPT_ZOOM mode currently displays zoomed content at its cloned natural size — small images sit centered in a sea of empty space, large ones require excessive scrolling. Users have no control over how content fills the screen. Adding fit/fill toggle and zoom scale control gives a natural image-viewer experience.
+PPT_ZOOM mode currently displays zoomed content at its cloned natural size — small images sit centered in a sea of empty space, large ones require excessive scrolling. Users have no control over how content fills the screen. Arrow keys at scroll boundaries unexpectedly exit zoom and navigate slides, causing confusion.
 
 ## What Changes
 
-- Enter ZOOM: default to "内接" — content fits entirely within viewport (no cropping, see the full picture)
-- `Enter` in ZOOM: toggle between "内接" (fit) and "填充" (fill viewport, may crop)
-- `+` / `-` in ZOOM: step zoom scale through preset levels 1.0× → 1.25× → 1.5× → 2.0× → 3.0×
-- Scale only goes ≥ 1.0× — never smaller than fit-to-viewport
-- CSS custom property `--zoom-scale` drives sizing; `.fill` class toggles fit vs fill rendering
-- Works for ALL zoomable content: images, mermaid SVGs
+- **Unified scale line**: fit and fill are positions on a single dimension, not orthogonal controls. `fillStep` is dynamically computed from content dimensions. Fill class is derived from scale position, not manually toggled.
+- **Enter zoom default**: fit-viewport (1.0×) — see the full picture immediately.
+- **`Enter` quick-toggle**: binary jump between fit anchor (1.0) and the computed fill step. No intermediate steps.
+- **`+` / `-` stepped zoom**: navigate the dynamic scale line linearly. Scale ≥ fillStep automatically applies fill rendering.
+- **Arrow keys locked in zoom**: scroll within content only. Never exit zoom, never navigate slides. Boundary reach plays bounce animation. Escape is the only exit.
+- **ArrowLeft/Right boundary detection**: properly capped (currently hardcoded `return true`).
+- Works for ALL zoomable content: images, mermaid SVGs.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `zoom-scale-control`: Users can adjust the zoom level of content in PPT_ZOOM mode using the +/- keys, with 0 to reset. Scale is continuous (multiplicative), works on all zoomable content types.
+- `zoom-scale-control`: Unified scale line with dynamic fill-step computation. Arrow keys locked to zoom container (no exit/navigate). Enter = fit ↔ fillStep binary jump. `+`/`-` step along dynamic scale line.
 
 ### Modified Capabilities
 
@@ -23,7 +24,7 @@ PPT_ZOOM mode currently displays zoomed content at its cloned natural size — s
 
 ## Impact
 
-- **CSS**: `body.mode-zoom .zoom-content` rule in `md2html.py` CSS_TEMPLATE (currently has no style rules)
-- **JavaScript**: `enterZoomMode()`, `exitZoomMode()`, and keyboard handler in PPT_ZOOM case — all in `md2html.py` JS_TEMPLATE
+- **CSS**: `body.mode-zoom .zoom-container` bounce animation class; existing `.zoom-content` rules unchanged
+- **JavaScript**: `enterZoomMode()` (dynamic scale line construction + layout timing), `exitZoomMode()`, `applyZoomScale()` (derive fill from position), `scrollZoomContainer()` (boundary detection), keyboard handler PPT_ZOOM case (Arrow = scroll only, Enter = binary jump)
 - **Documentation**: Keyboard shortcut table in SKILL.md
 - **No impact**: DOC mode, PPT_FULL focus system, state machine transitions, image slide layout
